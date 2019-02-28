@@ -1,0 +1,69 @@
+import sys
+from collections import defaultdict
+import logging
+import os
+import os.path
+import errno
+from typing import List, Dict, DefaultDict
+
+_ENV_LOG_LEVEL = 'UNIT_TESTS_LOG_LEVEL'
+_TESTS_ENV_FILE_FILENAME = 'tests.env'
+_MERGED_ENV = None
+_LOGGING_CONFIGURED = False
+
+
+def get_env_files():
+    dirs = [os.getcwd()]
+    parent = os.path.dirname(os.getcwd())
+    if parent:
+        dirs.append(parent)
+    return list(map(lambda dirname: os.path.join(dirname, _TESTS_ENV_FILE_FILENAME), dirs))
+
+
+def parse_env_file(pathnames: List[str]) -> Dict[str, str]:
+    env = {}
+    for pathname in pathnames:
+        try:
+            with open(pathname, 'r') as ifile:
+                for lineno, line in enumerate(ifile):
+                    line = line[:-1]
+                    try:
+                        name, value = line.split('=', 1)
+                    except Exception as e:
+                        print(f"tests: invalid line {lineno} in {pathname}: {e}", file=sys.stderr)
+                        continue
+                    env[name] = value
+        except IOError as e:
+            if e.errno != errno.ENOENT:
+                print(f"tests: error reading {pathname}: {e}")
+    return env
+
+
+def get_merged_env() -> DefaultDict[str, str]:
+    global _MERGED_ENV
+    if _MERGED_ENV is None:
+        file_env = parse_env_file(get_env_files())
+        process_env = dict(os.environ)
+        merged_env = defaultdict(lambda: None)
+        merged_env.update(file_env)
+        merged_env.update(process_env)
+        _MERGED_ENV = merged_env
+    return _MERGED_ENV
+
+
+def configure_logging():
+    global _LOGGING_CONFIGURED
+    if _LOGGING_CONFIGURED:
+        return
+    env = get_merged_env()
+    level_str = env[_ENV_LOG_LEVEL] or 'INFO'
+    try:
+        level = logging.__dict__[level_str]
+    except KeyError:
+        print(f"tests: illegal log level {level_str}", file=sys.stderr)
+        level = logging.INFO
+    logging.basicConfig(level=level)
+    _LOGGING_CONFIGURED = True
+
+
+configure_logging()
