@@ -126,6 +126,14 @@ class PuzzleCreator(object):
         shape = self.determine_shape(grid, args.shape)
         if shape is not None:
             puzzle.height, puzzle.width = shape
+        for attrib in ('title', 'author', 'copyright', 'notes'):
+            value = args.__dict__[attrib]
+            if value is not None:
+                puzzle.__setattr__(attrib, value)
+        render_model = rendering.RenderModel.build(puzzle)
+        clue_locations = render_model.clue_locations()
+        if len(clue_locations) != len(puzzle.clues):
+            _log.warning("list of %d clues is not compatible with expected clue locations (%d)", len(puzzle.clues), len(clue_locations))
         output_pathname = args.output_pathname or _generate_filename(self.output_dir)
         puzzle.save(output_pathname)
         return output_pathname, puzzle
@@ -221,8 +229,9 @@ def main():
     logging.basicConfig(level=logging.__dict__[args.log_level])
     if args.render:
         puzzle = puz.read(args.input or args.output_pathname)
+        model = rendering.RenderModel.build(puzzle)
         with open(args.render, 'w') as ofile:
-            rendering.PuzzleRenderer().render(puzzle, ofile)
+            rendering.PuzzleRenderer().render(model, ofile)
         _log.debug("html written to %s", args.render)
         return 0
     creator = PuzzleCreator()
