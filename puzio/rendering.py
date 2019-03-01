@@ -73,9 +73,11 @@ body {
 
 class Cell(object):
 
-    def __init__(self, value, number):
+    def __init__(self, value, number, across, down):
         self.value = value
         self.number = number
+        self.across = across
+        self.down = down
 
     def get_class(self):
         return 'dark' if self.value == '.' else 'light'
@@ -126,6 +128,16 @@ class RenderModel(object):
                 assert isinstance(cell, Cell), "rows contains non-cell elements"
         self.clues = clues
 
+    def clue_locations(self):
+        locations = []
+        for r, row in enumerate(self.rows):
+            for c, cell in enumerate(row):
+                if cell.across:
+                    locations.append((r, c))
+                if cell.down:
+                    locations.append((r, c))
+        return locations
+
     @classmethod
     def build(cls, puzzle: puz.Puzzle) -> 'RenderModel':
         nrows, ncols = puzzle.height, puzzle.width
@@ -162,7 +174,7 @@ class RenderModel(object):
                             iclue += 1
                 else:
                     cell_number = None
-                cell = Cell(value, cell_number)
+                cell = Cell(value, cell_number, across, down)
                 grow.append(cell)
             grows.append(grow)
         for row in grows:
@@ -213,16 +225,15 @@ class PuzzleRenderer(object):
         self.clue_renderer = ClueRenderer()
         self.css = _CSS
 
-    def render(self, puzzle, ofile=None):
+    def render(self, model: RenderModel, ofile=None):
         return_str = ofile is None
         if return_str:
             ofile = io.StringIO()
-        self._render(puzzle, ofile)
+        self._render(model, ofile)
         if return_str:
             return ofile.getvalue()
 
-    def _render(self, puzzle, of: TextIO):
-        model = RenderModel.build(puzzle)
+    def _render(self, model: RenderModel, of: TextIO):
         def fprint(text):
             print(text, sep="", file=of)
         fprint("<!DOCTYPE html>\n<html>")
