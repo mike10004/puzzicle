@@ -10,6 +10,8 @@ import typing
 from typing import List, Tuple, Optional
 from typing.io import TextIO
 import logging
+from . import rendering
+
 
 _log = logging.getLogger(__name__)
 
@@ -31,6 +33,7 @@ def create_arg_parser() -> ArgumentParser:
     parser.add_argument("--copyright", help="set copyright")
     parser.add_argument("--notes", help="set notes")
     parser.add_argument("--log-level", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
+    parser.add_argument("--render", metavar="FILE", help="render as HTML to FILE")
     return parser
 
 
@@ -216,8 +219,14 @@ def main():
     parser = create_arg_parser()
     args = parser.parse_args()
     logging.basicConfig(level=logging.__dict__[args.log_level])
+    if args.render:
+        puzzle = puz.read(args.input or args.output_pathname)
+        with open(args.render, 'w') as ofile:
+            rendering.PuzzleRenderer().render(puzzle, ofile)
+        _log.debug("html written to %s", args.render)
+        return 0
     creator = PuzzleCreator()
-    output_pathname = creator.create(args)
+    output_pathname, puzzle = creator.create(args)
     if args.output_pathname is None:
         print(output_pathname)
     return 0

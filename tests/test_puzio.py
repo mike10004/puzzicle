@@ -1,5 +1,6 @@
 import tempfile
 import puzio
+import puzio.rendering
 import io
 import puz
 from puzio import PuzzleCreator, ClueParser, Clue, GridParser, QxwParser
@@ -296,3 +297,17 @@ class QxwParserTest(TestCase):
         model = QxwParser().parse(io.StringIO(text))
         solution = model.to_puz_solution()
         self.assertEqual('ABC...DEF.GH.IJ.KLM...NOP', solution, "converted solution")
+
+
+class RendererTest(TestCase):
+
+    def test_render(self):
+        renderer = puzio.rendering.PuzzleRenderer()
+        puz_base64 = """70NBQ1JPU1MmRE9XTgAAjkkXpJfPlgYuMS4zAAAAAAAAAAAAAAAAAAAAAAAFBQoAAQAAAEFCQy4u
+LkRFRi5HSC5JSi5LTE0uLi5OT1AtLS0uLi4tLS0uLS0uLS0uLS0tLi4uLS0tAAAAYWxmYQBnb2xm
+AGhvdGVsAGJyYXZvAGluZGlhAGNoYXJsaWUAZGVsdGEAZWNobwBqdWxpZXQAZm94dHJvdAAA
+"""
+        puz_data = base64.b64decode(puz_base64)
+        puzzle = puz.load(puz_data)
+        html = renderer.render(puzzle)
+        print(html)
