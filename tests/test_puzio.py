@@ -4,6 +4,7 @@ import puzio.rendering
 import io
 import puz
 from puzio import PuzzleCreator, ClueParser, Clue, GridParser, QxwParser
+from puzio.rendering import RenderModel
 from unittest import TestCase
 import argparse
 import os.path
@@ -173,6 +174,28 @@ Down
         expected_clue_texts = 'alfa golf hotel bravo india charlie delta echo juliet foxtrot'.split()
         self.assertListEqual(expected_clue_texts, actual_clue_texts, "clues")
 
+    def test__parse_text_numberwithdirection(self):
+        clues_text = """1A. foo
+4A. bar
+1D. alfa
+2D. bravo
+3D. charlie
+4D. delta
+5D. echo
+6D. foxtrot"""
+        actual_clues = ClueParser()._parse_text(io.StringIO(clues_text))
+        expected_clues = {
+            Clue(1, 'A', 'foo'),
+            Clue(4, 'A', 'bar'),
+            Clue(1, 'D', 'alfa'),
+            Clue(2, 'D', 'bravo'),
+            Clue(3, 'D', 'charlie'),
+            Clue(4, 'D', 'delta'),
+            Clue(5, 'D', 'echo'),
+            Clue(6, 'D', 'foxtrot'),
+        }
+        self.assertSetEqual(expected_clues, set(actual_clues))
+
 
 class TestGridParser(TestCase):
 
@@ -309,5 +332,7 @@ AGhvdGVsAGJyYXZvAGluZGlhAGNoYXJsaWUAZGVsdGEAZWNobwBqdWxpZXQAZm94dHJvdAAA
 """
         puz_data = base64.b64decode(puz_base64)
         puzzle = puz.load(puz_data)
-        html = renderer.render(puzzle)
+        model = RenderModel.build(puzzle)
+        html = renderer.render(model)
         print(html)
+        self.assertIsNone(html)

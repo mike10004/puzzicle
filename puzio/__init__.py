@@ -27,11 +27,11 @@ def create_arg_parser() -> ArgumentParser:
     parser.add_argument("--clues", help="define clues source")
     parser.add_argument("--solution", help="define solution; use '.' char for dark cells")
     parser.add_argument("--grid", help="define grid; use '.' for dark cells, anything for light")
-    parser.add_argument("--title", help="set title")
-    parser.add_argument("--author", help="set author")
+    parser.add_argument("--title", metavar="STR", help="set title")
+    parser.add_argument("--author", metavar="STR", help="set author")
     parser.add_argument("--shape", metavar="SPEC", default='square', help="set shape; value can be 'ROWSxCOLS' or 'square'")
-    parser.add_argument("--copyright", help="set copyright")
-    parser.add_argument("--notes", help="set notes")
+    parser.add_argument("--copyright", metavar="STR", help="set copyright")
+    parser.add_argument("--notes", metavar="STR", help="set notes")
     parser.add_argument("--log-level", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
     parser.add_argument("--render", metavar="FILE", help="render as HTML to FILE")
     return parser
@@ -167,20 +167,23 @@ class ClueParser(object):
             across_clues = self._parse_text_lines(lines[a_start+1:d_start], 'A')
             down_clues = self._parse_text_lines(lines[d_start+1:], 'D')
             return across_clues + down_clues
+        else:  # Assume clues are written like "6A. blah blah" and "23D. blah blah"
+            return [self._parse_text_line(line) for line in lines]
         raise ValueError("could not parse clue text input")
 
-    def _parse_text_line(self, line: str) -> Tuple[int, str]:
-        m = re.fullmatch(r'^(\d+)\.?\s*(.*)$', line)
+    def _parse_text_line(self, line: str, direction: str=None) -> Optional[Clue]:
+        m = re.fullmatch(r'^(\d+)([ADad])?\.?\s*(.*)$', line)
         if m is None:
-            _log.debug("failed to parse clue line")
-            return -1, ''
-        return int(m.group(1)), m.group(2)
+            _log.info("failed to parse clue line")
+            return None
+        return Clue(int(m.group(1)), direction or m.group(2).upper(), m.group(3))
 
-    def _parse_text_lines(self, lines: List[str], direction: str) -> List[Clue]:
+    def _parse_text_lines(self, lines: List[str], direction: str=None) -> List[Clue]:
         clues = []
         for line in lines:
-            number, text = self._parse_text_line(line)
-            clues.append(Clue(number, direction, text))
+            clue = self._parse_text_line(line, direction)
+            if clue is not None:
+                clues.append(clue)
         return clues
 
     def _parse_numbering_cells(self, numbering: List[str]) -> Tuple[int, str]:
