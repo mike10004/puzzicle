@@ -8,12 +8,13 @@ from argparse import Namespace, ArgumentParser
 import common
 import typing
 from typing import List, Tuple, Optional
-from typing.io import TextIO
+from typing import TextIO
 import logging
 from . import rendering
 
 
 _log = logging.getLogger(__name__)
+
 
 def _generate_filename(directory):
     stamp = common.timestamp()
@@ -37,12 +38,14 @@ def create_arg_parser() -> ArgumentParser:
     return parser
 
 
-def _read_lines(ifile, include_whitespace_only=False):
+def _read_lines(ifile: TextIO, include_whitespace_only: bool=False, comment_leader: str=None):
     lines = []
     lines_with_endings = [line for line in ifile]
     for i, line in enumerate(lines_with_endings):
         if line[-1] == os.linesep:
             line = line[:-1]
+        if comment_leader is not None and line.lstrip().startswith(comment_leader):
+            continue
         if include_whitespace_only or line.strip():
             lines.append(line)
     return lines
@@ -154,13 +157,15 @@ class Clue(tuple):
 # noinspection PyMethodMayBeStatic
 class ClueParser(object):
 
+    comment_leader = '#'
+
     def parse(self, ifile: TextIO, filename: str=None) -> List[Clue]:
         if filename is not None and filename.lower().endswith('.csv'):
             return self._parse_csv(csv.reader(ifile))
         return self._parse_text(ifile)
 
     def _parse_text(self, ifile: TextIO) -> List[Clue]:
-        lines = _read_lines(ifile)
+        lines = _read_lines(ifile, comment_leader=self.comment_leader)
         if 'Across' in lines and 'Down' in lines:
             a_start = lines.index('Across')
             d_start = lines.index('Down')
@@ -169,7 +174,6 @@ class ClueParser(object):
             return across_clues + down_clues
         else:  # Assume clues are written like "6A. blah blah" and "23D. blah blah"
             return [self._parse_text_line(line) for line in lines]
-        raise ValueError("could not parse clue text input")
 
     def _parse_text_line(self, line: str, direction: str=None) -> Optional[Clue]:
         m = re.fullmatch(r'^(\d+)([ADad])?\.?\s*(.*)$', line)
