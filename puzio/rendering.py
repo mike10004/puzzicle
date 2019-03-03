@@ -1,5 +1,5 @@
 import io
-from typing.io import TextIO
+from typing import TextIO
 from typing import Dict, List, Tuple
 import puz
 import logging
@@ -73,8 +73,10 @@ body {
 
 class Cell(object):
 
-    def __init__(self, value, number, across, down):
+    def __init__(self, row: int, column: int, value: str, number: int=None, across: bool=False, down: bool=False):
         self.value = value
+        self.row = row
+        self.column = column
         self.number = number
         self.across = across
         self.down = down
@@ -128,15 +130,10 @@ class RenderModel(object):
                 assert isinstance(cell, Cell), "rows contains non-cell elements"
         self.clues = clues
 
-    def clue_locations(self):
-        locations = []
+    def cells(self):
         for r, row in enumerate(self.rows):
             for c, cell in enumerate(row):
-                if cell.across:
-                    locations.append((r, c))
-                if cell.down:
-                    locations.append((r, c))
-        return locations
+                yield cell
 
     @classmethod
     def build(cls, puzzle: puz.Puzzle) -> 'RenderModel':
@@ -149,37 +146,33 @@ class RenderModel(object):
                 cols.append('.' if val == '.' else '')
             rows.append(cols)
         grows = []
-        number = 0
         clues = {
             'Across': [],
             'Down': [],
         }
-        iclue = 0
+        clue_numbering = puzzle.clue_numbering()
+        for direction in ('Across', 'Down'):
+            clue_list = clue_numbering.__dict__[direction.lower()]
+            for i in range(len(clue_list)):
+                clue_info = clue_list[i]
+                clue_tuple = (clue_info['num'], clue_info['clue'])
+                clues[direction].append(clue_tuple)
+        cell_list = []
         for r in range(len(rows)):
             row = rows[r]
             grow = []
             for c in range(len(row)):
                 value = rows[r][c]
-                across = _is_across(rows, r, c)
-                down = _is_down(rows, r, c)
-                if across or down:
-                    number += 1
-                    cell_number = number
-                    if value != '.':
-                        if across:
-                            clues['Across'].append((number, try_clue(puzzle.clues, iclue)))
-                            iclue += 1
-                        if down:
-                            clues['Down'].append((number, try_clue(puzzle.clues, iclue)))
-                            iclue += 1
-                else:
-                    cell_number = None
-                cell = Cell(value, cell_number, across, down)
+                cell = Cell(r, c, value)
+                cell_list.append(cell)
                 grow.append(cell)
             grows.append(grow)
-        for row in grows:
-            for cell in row:
-                assert isinstance(cell, Cell), "non-cell added to grows: " + str(type(cell))
+        for direction in ('across', 'down'):
+            for clue_info in clue_numbering.__dict__[direction]:
+                cell_num, cell_index = clue_info['num'], clue_info['cell']
+                cell_list[cell_index].number = cell_num
+                cell_list[cell_index].across = (direction == 'across')
+                cell_list[cell_index].down = (direction == 'down')
         return RenderModel(grows, clues)
 
 

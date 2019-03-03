@@ -29,6 +29,7 @@ class TestPuzzleCreator(TestCase):
     def test_create_empty(self):
         with tempfile.TemporaryDirectory() as tempdir:
             creator = PuzzleCreator(tempdir)
+            creator.allow_shapeless_grid = True
             output_pathname, puzzle = creator.create(namespace())
             self.assertIs(True, output_pathname and True)
             _log.debug("file length: %s", os.path.getsize(output_pathname))
@@ -42,6 +43,7 @@ class TestPuzzleCreator(TestCase):
             ('ABCDEFGHI', 'square', (3, 3)),
         ]
         creator = PuzzleCreator()
+        creator.allow_shapeless_grid = True
         for grid, shape_arg, expected in test_cases:
             with self.subTest():
                 actual = creator.determine_shape(grid, shape_arg)
@@ -478,5 +480,10 @@ class RenderModelTest(TestCase):
         model = RenderModel.build(puzzle)
         self.assertEqual(puzzle.width, len(model.rows))
         self.assertEqual(puzzle.height, len(model.rows[0]))
-        clue_locations = model.clue_locations()
-        self.assertEqual(len(puzzle.clues), len(clue_locations), "clue location count")
+        num_clues = 0
+        for cell in model.cells():
+            if cell.across:
+                num_clues += 1
+            if cell.down:
+                num_clues += 1
+        self.assertEqual(len(puzzle.clues), num_clues)

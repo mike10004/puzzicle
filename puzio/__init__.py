@@ -72,6 +72,8 @@ def _solution_to_grid(solution):
 # noinspection PyMethodMayBeStatic
 class PuzzleCreator(object):
 
+    allow_shapeless_grid = False
+
     def __init__(self, output_dir=None):
         self.output_dir = output_dir or os.getcwd()
 
@@ -82,7 +84,8 @@ class PuzzleCreator(object):
         if shape_arg != 'square':
             raise ValueError("invalid shape specification")
         if not grid:
-            _log.warning("could not determine grid shape")
+            if not self.allow_shapeless_grid:
+                _log.warning("could not determine grid shape")
             return None
         root = int(math.ceil(math.sqrt(len(grid))))
         return root, root
@@ -133,10 +136,6 @@ class PuzzleCreator(object):
             value = args.__dict__[attrib]
             if value is not None:
                 puzzle.__setattr__(attrib, value)
-        render_model = rendering.RenderModel.build(puzzle)
-        clue_locations = render_model.clue_locations()
-        if len(clue_locations) != len(puzzle.clues):
-            _log.warning("list of %d clues is not compatible with expected clue locations (%d)", len(puzzle.clues), len(clue_locations))
         output_pathname = args.output_pathname or _generate_filename(self.output_dir)
         puzzle.save(output_pathname)
         return output_pathname, puzzle
