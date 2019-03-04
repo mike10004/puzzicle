@@ -356,22 +356,6 @@ class QxwParserTest(TestCase):
         self.assertEqual('ABC...DEF.GH.IJ.KLM...NOP', solution, "converted solution")
 
 
-class RendererTest(TestCase):
-
-    def test_render(self):
-        renderer = puzio.rendering.PuzzleRenderer()
-        puz_base64 = """70NBQ1JPU1MmRE9XTgAAjkkXpJfPlgYuMS4zAAAAAAAAAAAAAAAAAAAAAAAFBQoAAQAAAEFCQy4u
-LkRFRi5HSC5JSi5LTE0uLi5OT1AtLS0uLi4tLS0uLS0uLS0uLS0tLi4uLS0tAAAAYWxmYQBnb2xm
-AGhvdGVsAGJyYXZvAGluZGlhAGNoYXJsaWUAZGVsdGEAZWNobwBqdWxpZXQAZm94dHJvdAAA
-"""
-        puz_data = base64.b64decode(puz_base64)
-        puzzle = puz.load(puz_data)
-        model = RenderModel.build(puzzle)
-        html = renderer.render(model)
-        _log.debug(html)
-        self.assertIsNotNone(html)
-
-
 _UNCHES_TEST_CASE_BASE64 = """I1FYVzJ2MyBodHRwOi8vd3d3LnF1aW5hcGFsdXMuY29tCkdQIDAgNSA1IDIgMCAwClRUTAorCkFV
 VAorCkdMUCAxIDEgMCAwIDAKR1NQIGZmZmZmZiAwMDAwMDAgMCAwIDAgMCAwMDAwMDAKR1NQTUsg
 MAorXCMKR1NQTUsgMQorCkdTUE1LIDIKKwpHU1BNSyAzCisKR1NQTUsgNAorCkdTUE1LIDUKKwpU
@@ -469,21 +453,3 @@ Q1QgMyAyIDAgLgpTUUNUIDQgMiAwIEsKU1FDVCAwIDMgMCBMClNRQ1QgMSAzIDAgTQpTUUNUIDIg
 MyAwIE4KU1FDVCAzIDMgMCBPClNRQ1QgNCAzIDAgUApTUUNUIDAgNCAwIFEKU1FDVCAxIDQgMCAu
 ClNRQ1QgMiA0IDAgUgpTUUNUIDMgNCAwIC4KU1FDVCA0IDQgMCBTCkVORAo="""
 
-class RenderModelTest(TestCase):
-
-    def test_build_unched(self):
-        puzzle = puz.Puzzle()
-        puzzle.width, puzzle.height = 5, 5
-        puzzle.fill = '-.-.-------.-.-------.-.-'
-        puzzle.clues = ['ADILQ', 'BFJNR', 'CHKPS', 'DEFGH', 'LMNOP']
-        puzzle.solution = 'A.B.CDEFGHI.J.KLMNOPQ.R.S'
-        model = RenderModel.build(puzzle)
-        self.assertEqual(puzzle.width, len(model.rows))
-        self.assertEqual(puzzle.height, len(model.rows[0]))
-        num_clues = 0
-        for cell in model.cells():
-            if cell.across:
-                num_clues += 1
-            if cell.down:
-                num_clues += 1
-        self.assertEqual(len(puzzle.clues), num_clues)

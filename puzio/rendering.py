@@ -1,6 +1,7 @@
 import io
 from typing import TextIO
 from typing import Dict, List, Tuple
+from collections import defaultdict
 import puz
 import logging
 
@@ -10,11 +11,11 @@ _CSS = """
 
 
 body {
-    margin: 0.75in; 
 }
 
 .clues {
-    margin-bottom: 15px;
+    margin: 15px 0;
+    column-count: 4;
 }
 
 .direction {
@@ -26,6 +27,8 @@ body {
 
 .clue {
     display: block;
+    padding-left: 32px;
+    text-indent: -32px;
 }
 
 .clue .number {
@@ -45,11 +48,12 @@ body {
 }
 
 .grid {
-    
 }
 
 .grid table {
     border-collapse: collapse;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .grid tr {
@@ -68,6 +72,30 @@ body {
     background-color: black;
     color: lightgray;
 }
+
+.heading {
+    margin-bottom: 15px;
+}
+
+.heading .title {
+    font-weight: bold;
+    font-size: 16pt;
+    display: inline-block;
+}
+
+.heading .author {
+    font-size: 12pt;
+    display: inline-block;
+}
+
+.heading .info {
+    font-size: 10pt;
+}
+
+.heading .copyright {
+    font-style: italic;
+}
+
 """
 
 
@@ -123,12 +151,14 @@ def try_clue(clues, index):
 
 class RenderModel(object):
 
-    def __init__(self, rows: List[List[Cell]], clues: Dict[str, List[Tuple[int, str]]]):
+    def __init__(self, rows: List[List[Cell]], clues: Dict[str, List[Tuple[int, str]]], info: Dict[str, str]):
         self.rows = rows
         for row in rows:
             for cell in row:
                 assert isinstance(cell, Cell), "rows contains non-cell elements"
         self.clues = clues
+        self.info = defaultdict(lambda: None)
+        self.info.update(info or {})
 
     def cells(self):
         for r, row in enumerate(self.rows):
@@ -173,7 +203,12 @@ class RenderModel(object):
                 cell_list[cell_index].number = cell_num
                 cell_list[cell_index].across = (direction == 'across')
                 cell_list[cell_index].down = (direction == 'down')
-        return RenderModel(grows, clues)
+        info = {}
+        for attrib in ('title', 'author', 'copyright', 'notes'):
+            value = puzzle.__dict__[attrib]
+            if value:
+                info[attrib] = value
+        return RenderModel(grows, clues, info)
 
 
 # noinspection PyMethodMayBeStatic
@@ -227,16 +262,36 @@ class PuzzleRenderer(object):
             return ofile.getvalue()
 
     def _render(self, model: RenderModel, of: TextIO):
-        def fprint(text):
+        def fprint(text, indent=0):
+            for i in range(indent):
+                print(' ', sep="", end="", file=of)
             print(text, sep="", file=of)
         fprint("<!DOCTYPE html>\n<html>")
         fprint(f"<style>{self.css}</style>")
         fprint("  <body>")
-        fprint("    <div class=\"clues\">")
-        self.clue_renderer.render(model.clues, of, indent=6)
+        fprint("    <div class=\"heading\">")
+        fprint("      <div class=\"main\">")
+        fprint("        <div class=\"title\">")
+        fprint(model.info['title'] or '', indent=10)
+        fprint("        </div>")
+        fprint("        <div class=\"author\">")
+        fprint(model.info['author'] or '', indent=10)
+        fprint("        </div>")
+        fprint("      </div>")
+        fprint("      <div class=\"info\">")
+        fprint("        <div class=\"copyright\">")
+        fprint(model.info['copyright'] or '', indent=10)
+        fprint("        </div>")
+        fprint("        <div class=\"notes\">")
+        fprint(model.info['notes'] or '', indent=10)
+        fprint("        </div>")
+        fprint("      </div>")
         fprint("    </div>")
         fprint("    <div class=\"grid\">")
         self.grid_renderer.render(model.rows, of, indent=6)
+        fprint("    </div>")
+        fprint("    <div class=\"clues\">")
+        self.clue_renderer.render(model.clues, of, indent=6)
         fprint("    </div>")
         fprint("  </body>")
         fprint("</html>")
