@@ -35,6 +35,7 @@ def create_arg_parser() -> ArgumentParser:
     parser.add_argument("--notes", metavar="STR", help="set notes")
     parser.add_argument("--log-level", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
     parser.add_argument("--render", metavar="FILE", help="render as HTML to FILE")
+    parser.add_argument("--more-css", metavar="FILE", help="with --render, read additional styles from FILE")
     return parser
 
 
@@ -236,8 +237,12 @@ def main():
     if args.render:
         puzzle = puz.read(args.input or args.output_pathname)
         model = rendering.RenderModel.build(puzzle)
+        more_css = []
+        if args.more_css:
+            with open(args.more_css, 'r') as ifile:
+                more_css.append(ifile.read())
         with open(args.render, 'w') as ofile:
-            rendering.PuzzleRenderer().render(model, ofile)
+            rendering.PuzzleRenderer(more_css=more_css).render(model, ofile)
         _log.debug("html written to %s", args.render)
         return 0
     creator = PuzzleCreator()

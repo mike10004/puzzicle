@@ -1,6 +1,6 @@
 import io
 from typing import TextIO
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Iterable
 from collections import defaultdict
 import puz
 import logging
@@ -11,6 +11,9 @@ _CSS = """
 
 
 body {
+    margin-left: auto;
+    margin-right: auto;
+    width: 7in;
 }
 
 .clues {
@@ -22,25 +25,31 @@ body {
     display: block;
     font-weight: bold;
     text-transform: uppercase;
-    margin-top: 15px;
+    margin-bottom: 6px;
+    margin-left: 24px;
+}
+
+.direction.down {
+    margin-top: 14px;
 }
 
 .clue {
     display: block;
-    padding-left: 32px;
+    padding-left: 24px;
     text-indent: -32px;
+    margin-bottom: 5px;
 }
 
 .clue .number {
     display: inline-block;
     font-weight: bold;
-    width: 32px;
+    min-width: 24px;
     text-align: right;
     margin-right: 8px;
 }
 
 .clue .text {
-    display: inline-block;
+    display: inline;
 }
 
 .clue .number:after {
@@ -241,17 +250,19 @@ class ClueRenderer(object):
             print(text, sep="", file=ofile)
         for direction in ['Across', 'Down']:
             some_clues = clues[direction]
-            fprint(f"<span class=\"direction\">{direction}</span>")
+            direction_class = direction.lower()
+            fprint(f"<span class=\"direction {direction_class}\">{direction}</span>")
             for clue in some_clues:
                 fprint(f"<span class=\"clue\"><span class=\"number\">{clue[0]}</span><span class=\"text\">{clue[1]}</span></span>")
 
 
 class PuzzleRenderer(object):
 
-    def __init__(self):
+    def __init__(self, css: str=_CSS, more_css: Iterable[str]=()):
         self.grid_renderer = GridRenderer()
         self.clue_renderer = ClueRenderer()
-        self.css = _CSS
+        self.css = css
+        self.more_css = tuple(more_css)
 
     def render(self, model: RenderModel, ofile=None):
         return_str = ofile is None
@@ -267,7 +278,10 @@ class PuzzleRenderer(object):
                 print(' ', sep="", end="", file=of)
             print(text, sep="", file=of)
         fprint("<!DOCTYPE html>\n<html>")
-        fprint(f"<style>{self.css}</style>")
+        if self.css:
+            fprint(f"<style>{self.css}</style>")
+        for style_markup in self.more_css:
+            fprint(f"<style>{style_markup}</style>")
         fprint("  <body>")
         fprint("    <div class=\"heading\">")
         fprint("      <div class=\"main\">")
