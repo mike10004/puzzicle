@@ -17,7 +17,7 @@ body {
 }
 
 .clues {
-    margin: 15px 0;
+    margin-top: 32px;
     column-count: 4;
 }
 
@@ -33,27 +33,26 @@ body {
     margin-top: 14px;
 }
 
-.clue {
-    display: block;
-    padding-left: 24px;
-    text-indent: -32px;
-    margin-bottom: 5px;
-}
-
-.clue .number {
+.clue-container {
     display: inline-block;
+}
+
+.clue {
+    margin-top: 6px;
+    display: table;
+}
+
+.clue > * {
+    display: table-row;
+}
+
+.clue > * > * {
+    display: table-cell;
+}
+
+.clue > * > .number {
+    width: 24px;
     font-weight: bold;
-    min-width: 24px;
-    text-align: right;
-    margin-right: 8px;
-}
-
-.clue .text {
-    display: inline;
-}
-
-.clue .number:after {
-
 }
 
 .grid {
@@ -251,10 +250,18 @@ class ClueRenderer(object):
         for direction in ['Across', 'Down']:
             some_clues = clues[direction]
             direction_class = direction.lower()
-            fprint(f"<span class=\"direction {direction_class}\">{direction}</span>")
+            fprint(f"<div class=\"direction {direction_class}\">{direction}</div>")
+            fprint(f"<div class=\"list-container {direction_class}\">")
             for clue in some_clues:
-                fprint(f"<span class=\"clue\"><span class=\"number\">{clue[0]}</span><span class=\"text\">{clue[1]}</span></span>")
-
+                fprint("<div class=\"clue-container\">")
+                fprint("<div class=\"clue\">")
+                fprint("  <div>")
+                fprint(f"    <div class=\"number\">{clue[0]}</div>")
+                fprint(f"    <div class=\"text\">{clue[1]}</div>")
+                fprint("  </div>")
+                fprint("</div>")
+                fprint("</div>")
+            fprint("</div>")
 
 class PuzzleRenderer(object):
 
