@@ -1,6 +1,9 @@
+#!/usr/bin/env python3
+
 import puz
-from puzio import rendering
+import json
 import argparse
+from puzio import rendering
 import logging
 
 
@@ -11,18 +14,22 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file", metavar="PUZ", help=".puz input file")
     parser.add_argument("--log-level", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
-    parser.add_argument("--render", metavar="FILE", help="render as HTML to FILE")
     parser.add_argument("--more-css", metavar="FILE", help="with --render, read additional styles from FILE")
+    parser.add_argument("--config", metavar="FILE", help="specify FILE with config settings in JSON")
     parser.add_argument("--output", metavar="FILE", default="/dev/stdout", help="set output file")
     args = parser.parse_args()
     puzzle = puz.read(args.input_file)
     model = rendering.RenderModel.build(puzzle)
     more_css = []
+    config = rendering.get_default_config()
+    if args.config:
+        with open(args.config, 'r') as ifile:
+            rendering.merge_dict(config, json.load(ifile))
     if args.more_css:
         with open(args.more_css, 'r') as ifile:
             more_css.append(ifile.read())
-    with open(args.render, 'w') as ofile:
-        renderer = rendering.PuzzleRenderer(more_css=more_css)
+    with open(args.output, 'w') as ofile:
+        renderer = rendering.PuzzleRenderer(config, more_css=more_css)
         renderer.render(model, ofile)
-    _log.debug("html written to %s", args.render)
+    _log.debug("html written to %s", args.output)
     return 0

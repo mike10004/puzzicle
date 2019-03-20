@@ -1,6 +1,0 @@
-#!/bin/bash
-
-PUZZICLE_DIR=$HOME/.local/src/puzzicle
-
-exec /usr/bin/env PYTHONPATH=$PUZZICLE_DIR python3 $PUZZICLE_DIR/cli.py "$@"
-
