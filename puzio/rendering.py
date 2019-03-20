@@ -1,110 +1,216 @@
 import io
-from typing import TextIO
-from typing import Dict, List, Tuple, Iterable
+import os
+from typing import Dict, List, Tuple, Iterable, Any, Iterator, TextIO
 from collections import defaultdict
+import collections
+import copy
+import math
 import puz
 import logging
 
 _log = logging.getLogger(__name__)
 
-_CSS = """
 
+_GRID_CELL_PX = 28
+_GRID_HEIGHT = 15  # cells
 
-body {
+_DEFAULT_CSS_MODEL = {
+    'body': {
+        'width': '7.5in',
+    },
+    'clue': {
+        'margin-top': '4px',
+        'font': {
+            'size': '10pt',
+        },
+    },
+    'column': {
+        'width': '160px',
+    },
+    'grid': {
+        'cell': {
+            'font-size': '7pt',
+            'width': str(_GRID_CELL_PX) + 'px',
+            'height': str(_GRID_CELL_PX) + 'px',
+            'padding': '2px',
+        },
+        'total-height': str(_GRID_CELL_PX * _GRID_HEIGHT + _GRID_HEIGHT * 6) + 'px'
+    },
+    'heading': {
+        'display': 'none',
+        'margin-bottom': '8px',
+        'title': {
+            'font-size': '16pt',
+            'font-weight': 'bold',
+            'font-style': 'normal',
+        },
+        'author': {
+            'font-size': '12pt',
+            'font-weight': 'normal',
+            'font-style': 'italic',
+        },
+        'info': {
+            'font-size': '10pt',
+            'font-weight': 'normal',
+            'font-style': 'normal',
+        },
+        'copyright': {
+            'font-size': '12pt',
+            'font-weight': 'normal',
+            'font-style': 'italic',
+        },
+    },
+}
+
+_CSS_TEMPLATE = """
+body {{
     margin-left: auto;
     margin-right: auto;
-    width: 7in;
-}
+    width: {body[width]};
+}}
 
-.clues {
-    margin-top: 32px;
-    column-count: 4;
-}
+.playground {{
+    position: relative;
+}}
 
-.direction {
+.clues {{
+    z-index: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}}
+
+.clues-column {{
+    float: left;
+    padding-top: {grid[total-height]};
+    padding-left: 25px;
+    width: {column[width]};
+}}
+
+.clues-column.first {{
+    padding-top: 0;
+    padding-left: 0;
+}}
+
+.direction {{
     display: block;
     font-weight: bold;
     text-transform: uppercase;
     margin-bottom: 6px;
     margin-left: 24px;
-}
+}}
 
-.direction.down {
+.direction.down {{
     margin-top: 14px;
-}
+}}
 
-.clue-container {
-    display: inline-block;
-}
+.clue-container {{
+    display: block;
+}}
 
-.clue {
-    margin-top: 6px;
+.clue {{
+    margin-top: {clue[margin-top]};
     display: table;
-}
+    font-size: {clue[font][size]};
+}}
 
-.clue > * {
+.clue > * {{
     display: table-row;
-}
+}}
 
-.clue > * > * {
+.clue > * > * {{
     display: table-cell;
-}
+}}
 
-.clue > * > .number {
+.clue > * > .number {{
     width: 24px;
     font-weight: bold;
-}
+}}
 
-.grid {
-}
+.grid {{
+    z-index: 100;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}}
 
-.grid table {
+.grid table {{
     border-collapse: collapse;
     margin-left: auto;
-    margin-right: auto;
-}
+    margin-right: 15px;
+}}
 
-.grid tr {
-}
+.grid tr {{
+}}
 
-.grid td {
+.grid td {{
     border: 1px solid black;
-    font-size: 8pt;
+    font-size: {grid[cell][font-size]};
     vertical-align: top;
-    width: 28px;
-    height: 28px;
-    padding: 2px;
-}
+    width: {grid[cell][width]};
+    height: {grid[cell][height]};
+    padding: {grid[cell][padding]};
+}}
 
-.dark {
+.dark {{
     background-color: black;
     color: lightgray;
-}
+}}
 
-.heading {
-    margin-bottom: 15px;
-}
+.heading {{
+    display: {heading[display]};
+    margin-bottom: {heading[margin-bottom]};
+}}
 
-.heading .title {
-    font-weight: bold;
-    font-size: 16pt;
+.heading .title {{
+    font-weight: {heading[title][font-weight]};
+    font-size: {heading[title][font-size]};
+    font-style: {heading[title][font-style]};
     display: inline-block;
-}
+}}
 
-.heading .author {
-    font-size: 12pt;
+.heading .author {{
+    font-weight: {heading[author][font-weight]};
+    font-size: {heading[author][font-size]};
+    font-style: {heading[author][font-style]};
     display: inline-block;
-}
+}}
 
-.heading .info {
-    font-size: 10pt;
-}
+.heading .info {{
+    font-size: {heading[info][font-size]};
+    font-weight: {heading[info][font-weight]};
+    font-style: {heading[info][font-style]};
+}}
 
-.heading .copyright {
-    font-style: italic;
-}
+.heading .copyright {{
+    font-size: {heading[copyright][font-size]};
+    font-weight: {heading[copyright][font-weight]};
+    font-style: {heading[copyright][font-style]};
+}}
 
 """
+
+_DEFAULT_CONFIG = {
+    'columns': 4,
+    'css': _DEFAULT_CSS_MODEL
+}
+
+# https://stackoverflow.com/a/3233356/2657036
+def merge_dict(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.Mapping):
+            d[k] = merge_dict(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
+
+
+def get_default_config():
+    return copy.deepcopy(_DEFAULT_CONFIG)
 
 
 class Cell(object):
@@ -222,6 +328,9 @@ class RenderModel(object):
 # noinspection PyMethodMayBeStatic
 class GridRenderer(object):
 
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config or get_default_config()
+
     def render(self, gridrows: List[List[Cell]], ofile, indent=0):
         def fprint(text):
             for i in range(indent):
@@ -242,34 +351,62 @@ class GridRenderer(object):
 
 class ClueRenderer(object):
 
-    def render(self, clues: Dict[str, List[Tuple[int, str]]], ofile, indent=0):
-        def fprint(text):
-            for i in range(indent):
-                print(' ', end="", file=ofile)
-            print(text, sep="", file=ofile)
+    def __init__(self, config: Dict[str, Any]=None):
+        self.config = config or get_default_config()
+
+    def element_iterator(self, clues: Dict[str, List[Tuple[int, str]]]) -> Iterator[str]:
         for direction in ['Across', 'Down']:
             some_clues = clues[direction]
             direction_class = direction.lower()
-            fprint(f"<div class=\"direction {direction_class}\">{direction}</div>")
-            fprint(f"<div class=\"list-container {direction_class}\">")
-            for clue in some_clues:
-                fprint("<div class=\"clue-container\">")
-                fprint("<div class=\"clue\">")
-                fprint("  <div>")
-                fprint(f"    <div class=\"number\">{clue[0]}</div>")
-                fprint(f"    <div class=\"text\">{clue[1]}</div>")
-                fprint("  </div>")
-                fprint("</div>")
-                fprint("</div>")
-            fprint("</div>")
+            yield f"<div class=\"direction {direction_class}\">{direction}</div>"
+            for number, prompt in some_clues:
+                clue_element = f"""\
+<div class=\"clue-container\">
+  <div class=\"clue\">
+    <div>
+      <div class=\"number\">{number}</div>
+      <div class=\"text\">{prompt}</div>
+    </div>
+  </div>
+</div>
+"""
+                yield clue_element
+
+    def get_breaks(self, num_elements) -> List[int]:
+        try:
+            return self.config['breaks']
+        except KeyError:
+            pass
+        num_columns = self.config['columns']
+        division_len = int(math.ceil(num_elements / (num_columns + 1)))
+        return [division_len * 2] + [division_len * 2 + division_len * i for i in range(1, num_columns - 1)]
+
+    def render(self, clues: Dict[str, List[Tuple[int, str]]], ofile, indent=0):
+        def fprint(text):
+            lines = text.split(os.linesep)
+            for line in lines:
+                for i in range(indent):
+                    print(' ', end="", file=ofile)
+                print(line, file=ofile)
+        elements = list(self.element_iterator(clues))
+        element_breaks = self.get_breaks(len(elements))
+        fprint("<div class=\"clues-column first\">")
+        for i in range(len(elements)):
+            element = elements[i]
+            fprint(element)
+            if i in element_breaks and (i != (len(elements) - 1)):
+                fprint("</div> <!-- end clue-column -->")
+                fprint("<div class=\"clues-column\">")
+        fprint("</div> <!-- end clue-column -->")
+
 
 class PuzzleRenderer(object):
 
-    def __init__(self, css: str=_CSS, more_css: Iterable[str]=()):
-        self.grid_renderer = GridRenderer()
-        self.clue_renderer = ClueRenderer()
-        self.css = css
-        self.more_css = tuple(more_css)
+    def __init__(self, config: Dict[str, Any]=None, more_css: Iterable[str]=None):
+        self.config = config or get_default_config()
+        self.grid_renderer = GridRenderer(self.config)
+        self.clue_renderer = ClueRenderer(self.config)
+        self.more_css = more_css or tuple()
 
     def render(self, model: RenderModel, ofile=None):
         return_str = ofile is None
@@ -285,9 +422,9 @@ class PuzzleRenderer(object):
                 print(' ', sep="", end="", file=of)
             print(text, sep="", file=of)
         fprint("<!DOCTYPE html>\n<html>")
-        if self.css:
-            fprint(f"<style>{self.css}</style>")
-        for style_markup in self.more_css:
+        base_css = _CSS_TEMPLATE.format(**(self.config['css']))
+        all_css = [base_css] + list(self.more_css)
+        for style_markup in all_css:
             fprint(f"<style>{style_markup}</style>")
         fprint("  <body>")
         fprint("    <div class=\"heading\">")
@@ -296,7 +433,7 @@ class PuzzleRenderer(object):
         fprint(model.info['title'] or '', indent=10)
         fprint("        </div>")
         fprint("        <div class=\"author\">")
-        fprint(model.info['author'] or '', indent=10)
+        fprint('' if not model.info['author'] else ('by ' + str(model.info['author'])), indent=10)
         fprint("        </div>")
         fprint("      </div>")
         fprint("      <div class=\"info\">")
@@ -308,11 +445,13 @@ class PuzzleRenderer(object):
         fprint("        </div>")
         fprint("      </div>")
         fprint("    </div>")
-        fprint("    <div class=\"grid\">")
+        fprint("    <div class=\"playground\">")
+        fprint("      <div class=\"grid\">")
         self.grid_renderer.render(model.rows, of, indent=6)
-        fprint("    </div>")
-        fprint("    <div class=\"clues\">")
+        fprint("      </div>")
+        fprint("      <div class=\"clues\">")
         self.clue_renderer.render(model.clues, of, indent=6)
+        fprint("      </div>")
         fprint("    </div>")
         fprint("  </body>")
         fprint("</html>")

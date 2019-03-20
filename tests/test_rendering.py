@@ -1,6 +1,7 @@
 from unittest import TestCase
-from puzio.rendering import RenderModel
+from puzio.rendering import RenderModel, ClueRenderer
 import puz
+import os
 import puzio.rendering
 import base64
 import logging
@@ -24,6 +25,11 @@ AGhvdGVsAGJyYXZvAGluZGlhAGNoYXJsaWUAZGVsdGEAZWNobwBqdWxpZXQAZm94dHJvdAAA
         html = renderer.render(model)
         _log.debug(html)
         self.assertIsNotNone(html)
+        output_file = os.getenv('RENDER_TEST_OUTPUT')
+        if output_file:
+            with open(output_file, 'w') as ofile:
+                print(html, file=ofile)
+            _log.info("wrote %s", output_file)
 
 
 class RenderModelTest(TestCase):
@@ -59,3 +65,40 @@ class RenderModelTest(TestCase):
             if cell.down:
                 num_clues += 1
         self.assertEqual(len(puzzle.clues), num_clues)
+
+
+class ClueRendererTest(TestCase):
+
+    def test_get_breaks(self):
+        r = ClueRenderer()
+        breaks = r.get_breaks(74)
+        self.assertListEqual([30, 45, 60], breaks)
+
+
+class ModuleTest(TestCase):
+
+    def test_merge_dict(self):
+        d = {
+            'a': [1, 2, 3],
+            'b': {
+                'c': 4,
+                'd': 5,
+            }
+        }
+        u = {
+            'b': {
+                'c': 6,
+                'e': 7,
+            }
+        }
+        d_ = puzio.rendering.merge_dict(d, u)
+        self.assertIs(d, d_)
+        expected = {
+            'a': [1, 2, 3],
+            'b': {
+                'c': 6,
+                'd': 5,
+                'e': 7,
+            }
+        }
+        self.assertDictEqual(expected, d)
