@@ -1,12 +1,15 @@
 import io
 import os
-from typing import Dict, List, Tuple, Iterable, Any, Iterator, TextIO
-from collections import defaultdict
+import json
 import collections
 import copy
 import math
 import puz
 import logging
+from argparse import ArgumentParser
+from typing import Dict, List, Tuple, Iterable, Any, Iterator, TextIO
+from collections import defaultdict
+
 
 _log = logging.getLogger(__name__)
 
@@ -374,6 +377,7 @@ class ClueRenderer(object):
 
     def get_breaks(self, num_elements) -> List[int]:
         try:
+            # noinspection PyTypeChecker
             return self.config['breaks']
         except KeyError:
             pass
@@ -385,7 +389,7 @@ class ClueRenderer(object):
         def fprint(text):
             lines = text.split(os.linesep)
             for line in lines:
-                for i in range(indent):
+                for _ in range(indent):
                     print(' ', end="", file=ofile)
                 print(line, file=ofile)
         elements = list(self.element_iterator(clues))
@@ -456,3 +460,28 @@ class PuzzleRenderer(object):
         fprint("  </body>")
         fprint("</html>")
 
+
+
+def main():
+    parser = ArgumentParser()
+    parser.add_argument("input_file", metavar="PUZ", help=".puz input file")
+    parser.add_argument("--log-level", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
+    parser.add_argument("--more-css", metavar="FILE", help="with --render, read additional styles from FILE")
+    parser.add_argument("--config", metavar="FILE", help="specify FILE with config settings in JSON")
+    parser.add_argument("--output", metavar="FILE", default="/dev/stdout", help="set output file")
+    args = parser.parse_args()
+    puzzle = puz.read(args.input_file)
+    model = RenderModel.build(puzzle)
+    more_css = []
+    config = get_default_config()
+    if args.config:
+        with open(args.config, 'r') as ifile:
+            merge_dict(config, json.load(ifile))
+    if args.more_css:
+        with open(args.more_css, 'r') as ifile:
+            more_css.append(ifile.read())
+    with open(args.output, 'w') as ofile:
+        renderer = PuzzleRenderer(config, more_css=more_css)
+        renderer.render(model, ofile)
+    _log.debug("html written to %s", args.output)
+    return 0
