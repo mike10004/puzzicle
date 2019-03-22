@@ -1,7 +1,7 @@
 import io
 import os
 import json
-import collections
+import collections.abc
 import copy
 import math
 import puz
@@ -205,7 +205,7 @@ _DEFAULT_CONFIG = {
 # https://stackoverflow.com/a/3233356/2657036
 def merge_dict(d, u):
     for k, v in u.items():
-        if isinstance(v, collections.Mapping):
+        if isinstance(v, collections.abc.Mapping):
             d[k] = merge_dict(d.get(k, {}), v)
         else:
             d[k] = v
@@ -425,11 +425,19 @@ class PuzzleRenderer(object):
             for i in range(indent):
                 print(' ', sep="", end="", file=of)
             print(text, sep="", file=of)
-        fprint("<!DOCTYPE html>\n<html>")
+        title, author = (model.info['title'] or ''), (model.info['author'] or '')
+        fprint("<!DOCTYPE html>")
+        fprint("<html>")
+        fprint("<head>")
+        if title and author:
+            fprint(f"  <title>{title} by {author}</title>")
+        elif title:
+            fprint(f"  <title>{title}</title>")
         base_css = _CSS_TEMPLATE.format(**(self.config['css']))
         all_css = [base_css] + list(self.more_css)
         for style_markup in all_css:
             fprint(f"<style>{style_markup}</style>")
+        fprint("</head>")
         fprint("  <body>")
         fprint("    <div class=\"heading\">")
         fprint("      <div class=\"main\">")
