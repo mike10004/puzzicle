@@ -67,3 +67,16 @@ def configure_logging():
 
 
 configure_logging()
+
+
+def get_testdata_file(relative_path: str) -> str:
+    parent = os.path.dirname(os.path.dirname(__file__))
+    pathname = os.path.join(parent, 'testdata', relative_path)
+    if not os.path.exists(pathname):
+        raise ValueError("testdata file not found: " + relative_path + " at " + pathname)
+    return pathname
+
+
+def load_testdata(relative_path, mode='rb'):
+    with open(get_testdata_file(relative_path), mode) as ifile:
+        return ifile.read()

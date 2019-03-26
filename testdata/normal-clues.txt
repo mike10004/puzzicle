@@ -1,0 +1,13 @@
+Across
+1. alfa
+4. bravo
+6. charlie
+7. delta
+8. echo
+10. foxtrot
+
+Down
+2. golf
+3. hotel
+5. india
+9. juliet
