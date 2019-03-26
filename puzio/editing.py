@@ -208,23 +208,29 @@ class ClueParser(object):
 
 class QxwModel(object):
 
-    def __init__(self, grid_entries: List[Tuple[int, int, int, str]]):
-        self.grid_entries = grid_entries
+    def __init__(self, cells):
+        self.cells = cells
 
     def to_puz_solution(self):
-        values = [entry[-1] for entry in sorted(self.grid_entries)]
+        values = self.cells
         return ''.join(values)
 
 
 class QxwParser(object):
 
     def parse(self, ifile: TextIO) -> QxwModel:
-        sqct_lines = [line for line in _read_lines(ifile) if line.startswith("SQCT")]
-        grid_entries = []
-        for line in sqct_lines:
-            _, x, y, z, value = line.strip().split()
-            grid_entries.append((int(y), int(x), int(z), value))
-        return QxwModel(grid_entries)
+        sq_lines = [line[3:] for line in _read_lines(ifile) if line.startswith("SQ ")]
+        cells = []
+        for line in sq_lines:
+            components = line.strip().split()
+            if len(components) == 5:
+                val = '_'
+            else:
+                val = components[5]
+            if components[4] == '1':
+                val = '.'
+            cells.append(val)
+        return QxwModel(cells)
 
 
 def main():
