@@ -77,6 +77,10 @@ def get_testdata_file(relative_path: str) -> str:
     return pathname
 
 
+def open_testdata_file(relative_path: str, mode: str='rb'):
+    return open(get_testdata_file(relative_path), mode)
+
+
 def load_testdata(relative_path, mode='rb'):
-    with open(get_testdata_file(relative_path), mode) as ifile:
+    with open_testdata_file(relative_path, mode) as ifile:
         return ifile.read()

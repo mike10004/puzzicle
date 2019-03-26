@@ -1,0 +1,98 @@
+#QXW2v3 http://www.quinapalus.com
+GP 0 1 1 2 0 0
+TTL
++
+AUT
++
+GLP 1 1 0 0 0
+GSP ffffff 000000 0 0 0 0 000000
+GSPMK 0
++\#
+GSPMK 1
++
+GSPMK 2
++
+GSPMK 3
++
+GSPMK 4
++
+GSPMK 5
++
+TM 0 0 0 0 0
++
+TMSG 0 0
++
+TMSG 0 1
++
+DFN 0
++/usr/share/dict/words
+DFN 1
++
+DFN 2
++
+DFN 3
++
+DFN 4
++
+DFN 5
++
+DFN 6
++
+DFN 7
++
+DFN 8
++
+DSF 0
++^.*+(?<!'s)
+DSF 1
++
+DSF 2
++
+DSF 3
++
+DSF 4
++
+DSF 5
++
+DSF 6
++
+DSF 7
++
+DSF 8
++
+DAF 0
++
+DAF 1
++
+DAF 2
++
+DAF 3
++
+DAF 4
++
+DAF 5
++
+DAF 6
++
+DAF 7
++
+DAF 8
++
+SQ 0 0 0 0 1  
+SQSP 0 0 ffffff 000000 0 0 0 0 000000
+SQSPMK 0 0 0
++\#
+SQSPMK 0 0 1
++
+SQSPMK 0 0 2
++
+SQSPMK 0 0 3
++
+SQSPMK 0 0 4
++
+SQSPMK 0 0 5
++
+SQLP 0 0 0 1 1 0 0 0
+SQLP 0 0 1 1 1 0 0 0
+SQCT 0 0 0 .
+END

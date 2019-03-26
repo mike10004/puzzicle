@@ -8,7 +8,7 @@ import argparse
 import os.path
 import logging
 import tests
-import base64
+
 
 tests.configure_logging()
 _log = logging.getLogger(__name__)
@@ -219,4 +219,32 @@ class QxwParserTest(TestCase):
         solution = model.to_puz_solution()
         self.assertEqual('ABC...DEF.GH.IJ.KLM...NOP', solution, "converted solution")
 
+    def test_parse_a1x1(self):
+        with tests.open_testdata_file('a-1x1.qxw', 'r') as ifile:
+            model = QxwParser().parse(ifile)
+        solution = model.to_puz_solution()
+        self.assertEqual('A', solution, "converted solution")
 
+    def test_parse_blank1x1(self):
+        with tests.open_testdata_file('blank-1x1.qxw', 'r') as ifile:
+            model = QxwParser().parse(ifile)
+        solution = model.to_puz_solution()
+        self.assertEqual('_', solution, "converted solution")
+
+    def test_parse_adark1x1(self):
+        with tests.open_testdata_file('a-dark-1x1.qxw', 'r') as ifile:
+            model = QxwParser().parse(ifile)
+        solution = model.to_puz_solution()
+        self.assertEqual('.', solution, "converted solution")
+
+    def test_parse_basic2x2(self):
+        text = tests.load_testdata('basic-2x2.qxw', 'r')
+        model = QxwParser().parse(io.StringIO(text))
+        solution = model.to_puz_solution()
+        self.assertEqual('_.._', solution, "converted solution")
+
+    def test_parse_letter_in_dark_2x2(self):
+        with tests.open_testdata_file('letter-in-dark.qxw', 'r') as ifile:
+            qxw = QxwParser().parse(ifile)
+        sol = qxw.to_puz_solution()
+        self.assertEqual('A..D', sol, "solution")
