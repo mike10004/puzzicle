@@ -5,17 +5,22 @@ import collections.abc
 import copy
 import math
 import puz
+import pdfkit
 import logging
-from argparse import ArgumentParser
-from typing import Dict, List, Tuple, Iterable, Any, Iterator, TextIO
+import tempfile
+from argparse import ArgumentParser, Namespace
+from typing import Dict, List, Tuple, Iterable, Any, Iterator, TextIO, Sequence
 from collections import defaultdict
 
 
 _log = logging.getLogger(__name__)
 
 
-_GRID_CELL_PX = 28
-_GRID_HEIGHT = 15  # cells
+_GRID_CELL_WIDTH = 28
+_GRID_CELL_HEIGHT = 30
+_GRID_CELL_PAD_VERT = 1
+_GRID_CELL_PAD_HORZ = 2
+_NUM_GRID_ROWS = 15
 
 _DEFAULT_CSS_MODEL = {
     'body': {
@@ -33,11 +38,11 @@ _DEFAULT_CSS_MODEL = {
     'grid': {
         'cell': {
             'font-size': '7pt',
-            'width': str(_GRID_CELL_PX) + 'px',
-            'height': str(_GRID_CELL_PX) + 'px',
-            'padding': '1px 2px',
+            'width': f'{_GRID_CELL_WIDTH}px',
+            'height': f'{_GRID_CELL_HEIGHT}px',
+            'padding': f'{_GRID_CELL_PAD_VERT}px {_GRID_CELL_PAD_HORZ}px',
         },
-        'total-height': str(_GRID_CELL_PX * _GRID_HEIGHT + _GRID_HEIGHT * 6) + 'px'
+        'total-height': str(_NUM_GRID_ROWS * (_GRID_CELL_HEIGHT + _GRID_CELL_PAD_VERT + 2) + 10) + 'px'
     },
     'heading': {
         'display': 'block',
@@ -476,15 +481,31 @@ class PuzzleRenderer(object):
         fprint("</html>")
 
 
+def _do_render(model, config, more_css, ofile):
+    renderer = PuzzleRenderer(config, more_css=more_css)
+    renderer.render(model, ofile)
 
-def main():
+
+def make_pdf_options(args: Namespace):
+    return {
+        'quiet': '',
+        'page-size': 'Letter',
+        'margin-top': '0.25in',
+        'margin-right': '0.0in',
+        'margin-bottom': '0.25in',
+        'margin-left': '0.0in',
+        'encoding': "UTF-8",
+     }
+
+def main(args: Sequence[str]=None):
     parser = ArgumentParser()
     parser.add_argument("input_file", metavar="PUZ", help=".puz input file")
     parser.add_argument("--log-level", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
     parser.add_argument("--more-css", metavar="FILE", help="read additional styles from FILE")
     parser.add_argument("--config", metavar="FILE", help="specify FILE with config settings in JSON")
     parser.add_argument("--output", metavar="FILE", default="/dev/stdout", help="set output file")
-    args = parser.parse_args()
+    parser.add_argument("--tmpdir", metavar="DIR", help="use DIR for temp files")
+    args = parser.parse_args(args)
     puzzle = puz.read(args.input_file)
     model = RenderModel.build(puzzle)
     more_css = []
@@ -495,8 +516,21 @@ def main():
     if args.more_css:
         with open(args.more_css, 'r') as ifile:
             more_css.append(ifile.read())
-    with open(args.output, 'w') as ofile:
-        renderer = PuzzleRenderer(config, more_css=more_css)
-        renderer.render(model, ofile)
-    _log.debug("html written to %s", args.output)
+    html_file = args.output
+    pdf_file = args.output if args.output.lower().endswith('.pdf') else None
+    if pdf_file:
+        fd, html_file = tempfile.mkstemp(".html", "temporary", dir=args.tmpdir)
+        os.close(fd)
+    try:
+        with open(html_file, 'w') as ofile:
+            _do_render(model, config, more_css, ofile)
+        if pdf_file:
+            pdfkit.from_file(html_file, pdf_file, options=make_pdf_options(args))
+        _log.debug("wrote %s", args.output)
+    finally:
+        if pdf_file:
+            try:
+                os.remove(html_file)
+            except IOError as e:
+                _log.info("caught error deleting temp file %s: %s", html_file, e)
     return 0

@@ -1,10 +1,12 @@
 from unittest import TestCase
 from puzio.rendering import RenderModel, ClueRenderer
+import tests
 import puz
 import os
 import puzio.rendering
 import base64
 import logging
+import tempfile
 from collections import defaultdict
 
 
@@ -102,3 +104,11 @@ class ModuleTest(TestCase):
             }
         }
         self.assertDictEqual(expected, d)
+
+    def test_main_pdf(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            puz_file = tests.get_testdata_file("normal.puz")
+            output_file = os.path.join(tmpdir, "output.pdf")
+            exit_code = puzio.rendering.main(["--output", output_file, "--tmpdir", tmpdir, puz_file])
+            self.assertEqual(0, exit_code)
+            self.assertTrue(os.path.isfile(output_file))
