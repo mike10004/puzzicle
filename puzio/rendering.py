@@ -35,12 +35,12 @@ _DEFAULT_CSS_MODEL = {
             'font-size': '7pt',
             'width': str(_GRID_CELL_PX) + 'px',
             'height': str(_GRID_CELL_PX) + 'px',
-            'padding': '2px',
+            'padding': '1px 2px',
         },
         'total-height': str(_GRID_CELL_PX * _GRID_HEIGHT + _GRID_HEIGHT * 6) + 'px'
     },
     'heading': {
-        'display': 'none',
+        'display': 'block',
         'margin-bottom': '8px',
         'title': {
             'font-size': '16pt',
@@ -128,8 +128,10 @@ body {{
 }}
 
 .clue > * > .number {{
-    width: 24px;
+    width: 16px;
     font-weight: bold;
+    text-align: right;
+    padding-right: 10px; 
 }}
 
 .grid {{
@@ -339,14 +341,19 @@ class GridRenderer(object):
             for i in range(indent):
                 print(' ', end="", file=ofile)
             print(text, sep="", file=ofile)
+        row_index, cell_index = 0, 0
         fprint("<table>")
         for row in gridrows:
-            fprint("  <tr>")
+            row_index += 1
+            fprint(f"  <tr class=\"row\" id=\"row-{row_index}\">")
+            col_index = 0
             for cell in row:
                 assert isinstance(cell, Cell), f"not a cell {cell}"
-                content = '&nbsp;' if cell.number is None else str(cell.number)
+                cell_index += 1
+                col_index += 1
+                content = '&nbsp;' if cell.number is None else f"<span>{cell.number}</span>"
                 css_class = cell.get_class()
-                fprint(f"    <td class=\"{css_class}\">{content}</td>")
+                fprint(f"    <td id=\"cell-{cell_index}\" class=\"{css_class} column-{col_index}\">{content}</td>")
             fprint("  </td>")
         fprint("</table>")
 
@@ -474,7 +481,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("input_file", metavar="PUZ", help=".puz input file")
     parser.add_argument("--log-level", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
-    parser.add_argument("--more-css", metavar="FILE", help="with --render, read additional styles from FILE")
+    parser.add_argument("--more-css", metavar="FILE", help="read additional styles from FILE")
     parser.add_argument("--config", metavar="FILE", help="specify FILE with config settings in JSON")
     parser.add_argument("--output", metavar="FILE", default="/dev/stdout", help="set output file")
     args = parser.parse_args()
