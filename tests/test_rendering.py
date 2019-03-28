@@ -48,8 +48,8 @@ class RenderModelTest(TestCase):
         self.assertIsInstance(model.info, defaultdict)
         self.assertEqual(puzzle.title, model.info['title'])
         self.assertEqual(puzzle.author, model.info['author'])
-        copyright = model.info['copyright']
-        self.assertTrue(copyright is None or copyright == '')
+        puz_copyright = model.info['copyright']
+        self.assertTrue(puz_copyright is None or puz_copyright == '')
 
     def test_build_unched(self):
         puzzle = puz.Puzzle()
@@ -107,7 +107,7 @@ class ModuleTest(TestCase):
 
     def test_main_pdf(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            puz_file = tests.get_testdata_file("normal.puz")
+            puz_file = tests.data.get_file("normal.puz")
             output_file = os.path.join(tmpdir, "output.pdf")
             exit_code = puzio.rendering.main(["--output", output_file, "--tmpdir", tmpdir, puz_file])
             self.assertEqual(0, exit_code)

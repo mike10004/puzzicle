@@ -69,18 +69,29 @@ def configure_logging():
 configure_logging()
 
 
-def get_testdata_file(relative_path: str) -> str:
-    parent = os.path.dirname(os.path.dirname(__file__))
-    pathname = os.path.join(parent, 'testdata', relative_path)
-    if not os.path.exists(pathname):
-        raise ValueError("testdata file not found: " + relative_path + " at " + pathname)
-    return pathname
+class _Data(object):
+
+    def __init__(self, directory=None):
+        if directory is None:
+            parent = os.path.dirname(os.path.dirname(__file__))
+            self.directory = os.path.join(parent, 'testdata')
+        else:
+            self.directory = directory
+
+    def get_file(self, relative_path: str) -> str:
+        pathname = os.path.join(self.directory, relative_path)
+        if not os.path.exists(pathname):
+            raise ValueError("testdata file not found: " + relative_path + " at " + pathname)
+        return pathname
 
 
-def open_testdata_file(relative_path: str, mode: str='rb'):
-    return open(get_testdata_file(relative_path), mode)
+    def open_file(self, relative_path: str, mode: str='rb'):
+        return open(self.get_file(relative_path), mode)
 
 
-def load_testdata(relative_path, mode='rb'):
-    with open_testdata_file(relative_path, mode) as ifile:
-        return ifile.read()
+    def load_file(self, relative_path, mode='rb'):
+        with self.open_file(relative_path, mode) as ifile:
+            return ifile.read()
+
+
+data = _Data()
