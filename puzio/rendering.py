@@ -500,7 +500,7 @@ def make_pdf_options(args: Namespace):
 def main(args: Sequence[str]=None):
     parser = ArgumentParser()
     parser.add_argument("input_file", metavar="PUZ", help=".puz input file")
-    parser.add_argument("--log-level", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
+    parser.add_argument("--log-level", metavar="LEVEL", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
     parser.add_argument("--more-css", metavar="FILE", help="read additional styles from FILE")
     parser.add_argument("--config", metavar="FILE", help="specify FILE with config settings in JSON")
     parser.add_argument("--output", metavar="FILE", default="/dev/stdout", help="set output file")
