@@ -170,7 +170,7 @@ Down
         expected_clue_texts = 'alfa golf hotel bravo india charlie delta echo juliet foxtrot'.split()
         self.assertListEqual(expected_clue_texts, actual_clue_texts, "clues")
 
-    def test__parse_text_numberwithdirection(self):
+    def test__parse_text_numberwithdirection_dot(self):
         clues_text = """1A. foo
 4A. bar
 1D. alfa
@@ -179,6 +179,20 @@ Down
 4D. delta
 5D. echo
 6D. foxtrot"""
+        self.do_test_parse_text_numberwithdirection(clues_text)
+
+    def test__parse_text_numberwithdirection_nodot(self):
+        clues_text = """1A foo
+4A bar
+1D alfa
+2D bravo
+3D charlie
+4D delta
+5D echo
+6D foxtrot"""
+        self.do_test_parse_text_numberwithdirection(clues_text)
+
+    def do_test_parse_text_numberwithdirection(self, clues_text):
         actual_clues = ClueParser()._parse_text(io.StringIO(clues_text))
         expected_clues = {
             Clue(1, 'A', 'foo'),
