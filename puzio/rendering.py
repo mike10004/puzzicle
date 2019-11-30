@@ -19,6 +19,7 @@ from collections import defaultdict
 _log = logging.getLogger(__name__)
 
 
+_DARK = '.'
 _GRID_CELL_WIDTH = 28
 _GRID_CELL_HEIGHT = 30
 _GRID_CELL_PAD_VERT = 1
@@ -226,6 +227,14 @@ def get_default_config():
     return copy.deepcopy(_DEFAULT_CONFIG)
 
 
+def try_clue(clues, index):
+    try:
+        return clues[index]
+    except IndexError:
+        _log.info("clue not found at index %s", index)
+        return 'ABSENT'
+
+
 class Cell(object):
 
     def __init__(self, row: int, column: int, value: str, number: int=None, across: bool=False, down: bool=False):
@@ -237,43 +246,7 @@ class Cell(object):
         self.down = down
 
     def get_class(self):
-        return 'dark' if self.value == '.' else 'light'
-
-
-def _is_across(grid, r, c):
-    my_val = grid[r][c]
-    if my_val == '.':
-        return False
-    if c == 0:
-        return True
-    left_val = grid[r][c - 1]
-    try:
-        right_val = grid[r][c + 1]
-    except IndexError:
-        right_val = '.'
-    return left_val == '.' and right_val != '.'
-
-
-def _is_down(grid, r, c):
-    my_val = grid[r][c]
-    if my_val == '.':
-        return False
-    if r == 0:
-        return True
-    up_val = grid[r - 1][c]
-    try:
-        down_val = grid[r + 1][c]
-    except IndexError:
-        down_val = '.'
-    return up_val == '.' and down_val != '.'
-
-
-def try_clue(clues, index):
-    try:
-        return clues[index]
-    except IndexError:
-        _log.info("clue not found at index %s", index)
-        return 'ABSENT'
+        return 'dark' if self.value == _DARK else 'light'
 
 
 class RenderModel(object):
