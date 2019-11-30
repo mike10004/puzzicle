@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import re
-import os
+from collections import defaultdict
 import fnmatch
 import logging
 from typing import List, Tuple, Dict, Callable, Set, Iterable
@@ -133,15 +133,21 @@ class Puzzarian(object):
 
 
 def create_puzzeme_set(ifile: Iterable[str], intolerables=None):
-    items = []
+    by_canonical = defaultdict(list)
     for rendering in ifile:
         try:
-            items.append(Puzzeme(rendering))
+            p = Puzzeme(rendering)
+            by_canonical[p.canonical].append(p)
         except Exception as e:
             if intolerables is not None:
                 intolerables.append((rendering, e))
     if intolerables and len(intolerables):
         _log.info("%s items in input are intolerable", len(intolerables))
+    items = []
+    for variants in by_canonical.values():
+        assert len(variants) == sum([len(v.renderings) for v in variants])
+        renderings = [variant.renderings[0] for variant in variants]
+        items.append(Puzzeme(*renderings))
     return frozenset(items)
 
 

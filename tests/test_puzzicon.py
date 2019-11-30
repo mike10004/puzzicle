@@ -17,10 +17,26 @@ _SIMPLE_PUZZEME_SET = puzzicon.create_puzzeme_set(['foo', 'bar', 'baz', 'gaw'])
 
 class TestModuleMethods(unittest.TestCase):
 
+    def test_create_puzzeme_set_multiple_renderings(self):
+        wordlist = """\
+apple
+cant
+can't
+one
+on e
+pumpkin"""
+        wordlist_entries = wordlist.split("\n")
+        puzzemes = puzzicon.create_puzzeme_set(wordlist_entries)
+        self.assertIn(Puzzeme('apple'), puzzemes)
+        self.assertIn(Puzzeme('cant', 'can\'t'), puzzemes)
+        self.assertIn(Puzzeme('one', 'on e'), puzzemes)
+        self.assertIn(Puzzeme('pumpkin'), puzzemes)
+        self.assertEqual(4, len(puzzemes))
+
     def test_read_default(self):
         self.assertNotEqual(0, len(_DEFAULT_PUZZEME_SET), "no puzzemes in default set")
 
-    def test_create_filelike(self):
+    def test_create_puzzeme_set_filelike(self):
         wordlist = """apples
 peaches
 pumpkin"""
