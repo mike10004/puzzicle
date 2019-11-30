@@ -36,6 +36,9 @@ class GridModel(object):
         assert round(dim) == dim
         return int(dim), int(dim)
 
+    def get_index(self, square: Square) -> int:
+        return square.row * self.num_cols + square.col
+
     def to_text(self, newline=""):
         cells = []
         for row in self.rows:
