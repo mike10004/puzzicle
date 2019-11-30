@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import re
 import os
@@ -37,20 +38,29 @@ class Puzzeme(tuple):
 
     """Thing that might be an answer to a clue in a puzzle."""
 
-    canonical, rendering = None, None
+    canonical, renderings = None, None
 
-    def __new__(cls, rendering: str):
-        rendering = rendering.strip()
-        assert rendering, "lexeme rendering must contain non-whitespace"
-        canonical = Puzzeme.canonicalize(rendering)
+    def __new__(cls, rendering: str, *args):
+        renderings = [rendering]
+        if args:
+            renderings += list(args)
+        renderings = tuple(map(str.strip, renderings))
+        canonical = None
+        for rendering in renderings:
+            assert rendering, "lexeme rendering must contain non-whitespace"
+            normalized = Puzzeme.canonicalize(rendering)
+            assert canonical is None or normalized == canonical, "all renderings must have same canonical form"
+            canonical = normalized
+        assert canonical is not None
         assert canonical, "canonical form of lexeme must contain non-whitespace: {}".format(repr(rendering)[:64])
-        instance = super(Puzzeme, cls).__new__(cls, [canonical, rendering])
+        items = [canonical] + list(renderings)
+        instance = super(Puzzeme, cls).__new__(cls, items)
         instance.canonical = canonical
-        instance.rendering = rendering
+        instance.renderings = renderings
         return instance
 
-    @classmethod
-    def canonicalize(cls, rendering):
+    @staticmethod
+    def canonicalize(rendering):
         if _contains_nonalphabet(rendering):
             rendering = unicode_normalize(rendering)
         canonical = re.sub('[^A-Za-z]', '', rendering).strip().upper()
@@ -62,6 +72,9 @@ class Puzzeme(tuple):
 
 
 class Filters(object):
+
+    def __init__(self):
+        raise NotImplementedError("this class provides static methods")
 
     @classmethod
     def stature(cls, int_predicate: Callable[[int], bool]):
@@ -125,7 +138,7 @@ def create_puzzeme_set(ifile: Iterable[str], intolerables=None):
         try:
             items.append(Puzzeme(rendering))
         except Exception as e:
-            if intolerables:
+            if intolerables is not None:
                 intolerables.append((rendering, e))
     if intolerables and len(intolerables):
         _log.info("%s items in input are intolerable", len(intolerables))

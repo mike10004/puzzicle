@@ -26,7 +26,7 @@ peaches
 pumpkin"""
         ifile = io.StringIO(wordlist)
         puzzemes = puzzicon.create_puzzeme_set(ifile)
-        self.assertSetEqual(set([Puzzeme('apples'), Puzzeme('peaches'), Puzzeme('pumpkin'), ]), puzzemes)
+        self.assertSetEqual({Puzzeme('apples'), Puzzeme('peaches'), Puzzeme('pumpkin')}, puzzemes)
 
     def test_alphabet(self):
         self.assertEqual(26 * 2, len(puzzicon._ALPHABET))
@@ -46,11 +46,28 @@ class TestPuzzeme(unittest.TestCase):
     def test_create(self):
         p = Puzzeme('a')
         self.assertEqual('A', p.canonical)
-        self.assertEqual('a', p.rendering)
+        self.assertEqual(('a',), p.renderings)
 
     def test_create_diacritics(self):
         p = Puzzeme(u'café')
         self.assertEqual('CAFE', p.canonical)
+
+    def test_equals_tuple(self):
+        self.assertEqual(('ABC', 'abc'), Puzzeme('abc'))
+        self.assertEqual(('ABC', 'abc', 'ab c'), Puzzeme('abc', 'ab c'))
+
+    def test_multiple_renderings(self):
+        p = Puzzeme("itis", "it is")
+        self.assertEqual("ITIS", p.canonical)
+        self.assertTupleEqual(('itis', 'it is'), p.renderings)
+
+    def test_equals(self):
+        p = Puzzeme('abc')
+        q = Puzzeme('abc')
+        r = Puzzeme('def')
+        self.assertEqual(p, q)
+        self.assertNotEqual(q, r)
+
 
 
 class TestPuzzerarian(unittest.TestCase):
@@ -66,7 +83,7 @@ class TestPuzzerarian(unittest.TestCase):
         results = p.search([puzzicon.Filters.canonical('puzzle')], 0, 1)
         self.assertIsInstance(results, list)
         self.assertEqual(1, len(results))
-        self.assertEqual('puzzle', results[0].rendering)
+        self.assertTupleEqual(('puzzle',), results[0].renderings)
 
     def test_has_canonical(self):
         p = Puzzarian(_SIMPLE_PUZZEME_SET)
