@@ -58,16 +58,50 @@ class LegendTest(TestCase):
         self.assertEqual(('a', None, 'c', None, None, 'b'), f)
 
 
+class ModuleTest(TestCase):
+
+    def test__sort_and_check_duplicates_presorted_nodupes(self):
+        a = [1, 2, 3]
+        self.assertFalse(puzzicon.fill._sort_and_check_duplicates(a))
+        self.assertListEqual(a, sorted(a))
+
+    def test__sort_and_check_duplicates_presorted_dupes(self):
+        for b in [[1, 1, 2, 3], [1, 2, 2, 3], [1, 2, 3, 3]]:
+            a = b.copy()
+            self.assertTrue(puzzicon.fill._sort_and_check_duplicates(a))
+            self.assertListEqual(a, sorted(b))
+
+    def test__sort_and_check_duplicates_notsorted_dupes(self):
+        for b in [[1, 1, 3, 2], [3, 2, 1, 2], [2, 1, 3, 3], [3, 1, 2, 3]]:
+            a = b.copy()
+            self.assertTrue(puzzicon.fill._sort_and_check_duplicates(a))
+            self.assertListEqual(a, sorted(b))
+
+    def test__sort_and_check_duplicates_notsorted_nodupes(self):
+        for b in [[1, 3, 2], [3, 1, 2], [2, 1, 3]]:
+            a = b.copy()
+            self.assertFalse(puzzicon.fill._sort_and_check_duplicates(a))
+            self.assertListEqual(a, sorted(b))
+
+
+
+
 class FillStateTest(TestCase):
 
-    # noinspection PyTypeChecker
-    def test_advance(self):
-        d = Legend(['a', None, 'c'])
-        templates = ((1, 2), (3, 4), (5, 6))
-        state = FillState(templates, d)
-        other = state.advance({3: 'd'}, 'oogabooga')
-        self.assertIs(state.templates, other.templates)
-        self.assertNotEqual(state, other)
+    def test_advance_basic(self):
+        grid = GridModel.build("____")
+        state1 = FillState.from_grid(grid)
+        state2 = state1.advance({0: 'a', 1: 'b'})
+        self.assertIs(state1.templates, state2.templates)
+        self.assertNotEqual(state1, state2)
+        self.assertSetEqual({'ab'}, state2.used)
+
+    def test_advance_additional_entries_added(self):
+        grid = GridModel.build("____")
+        # noinspection PyTypeChecker
+        state2 = FillState(((0,1),(2,3),(0,2),(1,3)), Legend(['a', 'b']), frozenset({'ab'}))
+        state3 = state2.advance({2: 'c', 3: 'd'})
+        self.assertSetEqual({'ab', 'cd', 'ac', 'bd'}, state3.used)
 
     def test_is_template_filled(self):
         d = Legend(['a', None, 'c'])
@@ -201,7 +235,7 @@ class FillerTest(TestCase):
                 _show_path(state, grid)
             print("solution {}:\n{}\n".format(i + 1, state.render(grid)))
             self._check_2x2_filled(state)
-        self.assertEqual(2, len(all_filled))
+        self.assertEqual(2, len(all_filled), "expect two solutions")
 
     def _do_fill_3x3(self, grid: GridModel, listener: FillListener):
         wordlist = _WORDS_3x3 + _NONWORDS_3x3
@@ -213,7 +247,7 @@ class FillerTest(TestCase):
 
     def test_fill_2x2_low_threshold(self):
         grid = GridModel.build('____')
-        threshold = 10
+        threshold = 3
         listener = FirstCompleteListener(threshold)
         result = self._do_fill_2x2(grid, listener)
         self.assertIsNone(result)

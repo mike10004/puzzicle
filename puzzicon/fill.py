@@ -53,8 +53,21 @@ class Legend(tuple):
     def empty():
         return Legend([])
 
+    def is_all_defined(self, indexes: Sequence[int]):
+        for index in indexes:
+            if not self.has_value(index):
+                return False
+        return True
 
 _EMPTY_SET = frozenset()
+
+
+def _sort_and_check_duplicates(items: list):
+    items.sort()
+    for i in range(1, len(items)):
+        if items[i - 1] == items[i]:
+            return True
+    return False
 
 
 class FillState(tuple):
@@ -62,15 +75,16 @@ class FillState(tuple):
     templates, legend, used = None, None, None
     previous = None
 
-    def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend, used: FrozenSet[str]=_EMPTY_SET):
+    def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend, used: FrozenSet[str]=_EMPTY_SET, known_incorrect: bool=False):
         assert isinstance(templates, tuple)
         assert isinstance(legend, Legend)
         assert isinstance(used, frozenset)
         # noinspection PyTypeChecker
-        instance = super(FillState, cls).__new__(cls, [templates, legend])
+        instance = super(FillState, cls).__new__(cls, [templates, legend, used, known_incorrect])
         instance.templates = templates
         instance.legend = legend
         instance.used = used
+        instance.known_incorrect = known_incorrect
         return instance
 
     def is_template_filled(self, template: Tuple[int, ...]):
@@ -97,10 +111,17 @@ class FillState(tuple):
             if not self.is_template_filled(template):
                 yield i
 
-    def advance(self, legend_updates: Dict[int, str], new_entry) -> 'FillState':
+    def advance(self, legend_updates: Dict[int, str]) -> 'FillState':
         new_legend = self.legend.redefine(legend_updates)
-        used = frozenset(list(self.used) + [new_entry])
-        state = FillState(self.templates, new_legend, used)
+        more_entries = []
+        for index in legend_updates:
+            for template in filter(lambda t: index in t, self.templates):
+                if new_legend.is_all_defined(template):
+                    another_entry = new_legend.render(template)
+                    more_entries.append(another_entry)
+        used = frozenset(list(self.used) + more_entries)
+        has_dupes = len(used) < (len(self.used) + len(more_entries))
+        state = FillState(self.templates, new_legend, used, has_dupes)
         state.previous = self
         return state
 
@@ -156,9 +177,8 @@ class Bank(tuple):
     def suggest(self, state: FillState, template_i: int) -> Iterator[str]:
         indexes = state.templates[template_i]
         pattern = [state.legend.get(index) for index in indexes]
-        already_used = set(state.render_filled())
         def not_already_used(entry: str):
-            return entry not in already_used
+            return entry not in state.used
         return filter(not_already_used, self.filter(pattern))
 
     def is_correct(self, state: FillState):
@@ -253,8 +273,8 @@ class Filler(object):
                     position = template[i]
                     if position not in state.legend:
                         updates[position] = entry[i]
-                new_state = state.advance(updates, entry)
-                continue_now = self._fill(new_state, listener)
+                new_state = state.advance(updates)
+                continue_now =  self._fill(new_state, listener)
                 if continue_now != _CONTINUE:
                     action_flag = _STOP
                     break
