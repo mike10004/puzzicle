@@ -139,6 +139,18 @@ class BankTest(TestCase):
         actual = list(bank.filter(['A', 'B', None]))
         self.assertListEqual(['ABC', 'ABX'], actual)
 
+
+def _show_path(state: FillState, grid: GridModel):
+    path = []
+    while state is not None:
+        path.append(state)
+        state = state.previous
+    path.reverse()
+    for i, state in enumerate(path):
+        print("Step {}:\n{}\n".format(i + 1, state.render(grid)))
+
+
+
 _WORDS_2x2 = ['AB', 'BD', 'CD', 'AC']
 _WORDS_3x3 = ['AB', 'CDE', 'FG', 'AC', 'BDF', 'EG']
 _NONWORDS_3x3 = ['AD', 'ADG', 'EDC', 'BF']
@@ -164,11 +176,14 @@ class FillerTest(TestCase):
         self._check_2x2_filled(filled)
 
     def _check_2x2_filled(self, state: FillState):
+        self._check_filled(state, _WORDS_2x2)
+
+    def _check_filled(self, state: FillState, expected_words):
         self.assertIsInstance(state, FillState)
         templates = state.templates
         self.assertTrue(state.is_complete())
         renderings = [state.legend.render(template) for template in templates]
-        self.assertSetEqual(set(_WORDS_2x2), set(renderings))
+        self.assertSetEqual(set(expected_words), set(renderings))
 
     def test_fill_2x2_all(self):
         grid = GridModel.build('____')
@@ -176,8 +191,11 @@ class FillerTest(TestCase):
         self.assertIsInstance(all_filled, set)
         for i, state in enumerate(all_filled):
             self.assertIsInstance(state, FillState)
+            words = list(state.render_filled())
+            if len(set(words)) != len(words):
+                _show_path(state, grid)
             print("solution {}:\n{}\n".format(i + 1, state.render(grid)))
-            self._check_2x2_filled(all_filled.pop())
+            self._check_2x2_filled(state)
         self.assertEqual(2, len(all_filled))
 
     def _do_fill_3x3(self, grid: GridModel, listener: FillListener):
@@ -186,10 +204,7 @@ class FillerTest(TestCase):
         return self._do_fill(grid, listener, bank)
 
     def _check_3x3_filled(self, state: FillState):
-        self.assertIsInstance(state, FillState)
-        self.assertTrue(state.is_complete())
-        renderings = [state.legend.render(template) for template in state.templates]
-        self.assertSetEqual(set(_WORDS_3x3), set(renderings))
+        self._check_filled(state, _WORDS_3x3)
 
     def test_fill_3x3_first(self):
         grid = GridModel.build('__.___.__')

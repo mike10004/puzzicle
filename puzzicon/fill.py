@@ -56,6 +56,7 @@ class Legend(tuple):
 class FillState(tuple):
 
     templates, legend = None, None
+    previous = None
 
     def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend):
         # noinspection PyTypeChecker
@@ -89,7 +90,9 @@ class FillState(tuple):
                 yield i
 
     def advance(self, new_legend: Legend) -> 'FillState':
-        return FillState(self.templates, new_legend)
+        state = FillState(self.templates, new_legend)
+        state.previous = self
+        return state
 
     @staticmethod
     def from_grid(grid: GridModel) -> 'FillState':
@@ -103,7 +106,7 @@ class FillState(tuple):
         return FillState(tuple(templates), Legend.empty())
 
     # noinspection PyProtectedMember
-    def render(self, grid: GridModel, newline="\n", none_val=' ', dark=puzzicon.grid._DARK) -> str:
+    def render(self, grid: GridModel, newline="\n", none_val='_', dark=puzzicon.grid._DARK) -> str:
         rows = []
         for r in range(grid.num_rows):
             row = []
@@ -149,10 +152,14 @@ class Bank(tuple):
         return filter(not_already_used, self.filter(pattern))
 
     def is_correct(self, state: FillState):
-        for template in state.templates:
-            rendering = state.legend.render(template)
+        renderings = state.render_filled()
+        used = set()
+        for rendering in renderings:
             if not rendering in self:
                 return False
+            if rendering in used:
+                return False
+            used.add(rendering)
         return True
 
 
