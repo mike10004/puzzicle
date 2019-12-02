@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from puzzicon import Puzzeme
+import puzzicon.grid
 from puzzicon.grid import GridModel
 from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable
 
@@ -90,6 +91,35 @@ class FillState(tuple):
     def advance(self, new_legend: Legend) -> 'FillState':
         return FillState(self.templates, new_legend)
 
+    @staticmethod
+    def from_grid(grid: GridModel) -> 'FillState':
+        templates = []
+        for entry in grid.entries():
+            indexes = []
+            for square in entry.squares:
+                index = grid.get_index(square)
+                indexes.append(index)
+            templates.append(tuple(indexes))
+        return FillState(tuple(templates), Legend.empty())
+
+    # noinspection PyProtectedMember
+    def render(self, grid: GridModel, newline="\n", none_val=' ', dark=puzzicon.grid._DARK) -> str:
+        rows = []
+        for r in range(grid.num_rows):
+            row = []
+            for c in range(grid.num_cols):
+                s = grid.square(r, c)
+                if s.dark():
+                    row.append(dark)
+                else:
+                    i = grid.get_index(s)
+                    v = self.legend.get(i)
+                    row.append(none_val if v is None else v)
+            rows.append(''.join(row))
+        return newline.join(rows)
+
+
+
 class Bank(tuple):
 
     def __new__(cls, entries: Sequence[str]):
@@ -126,17 +156,6 @@ class Bank(tuple):
         return True
 
 
-def create_template_list(grid: GridModel) -> Tuple[Tuple[int, ...]]:
-    templates = []
-    for entry in grid.entries():
-        indexes = []
-        for square in entry.squares:
-            index = grid.get_index(square)
-            indexes.append(index)
-        templates.append(tuple(indexes))
-    return tuple(templates)
-
-
 _CONTINUE = False
 _STOP = True
 
@@ -148,17 +167,13 @@ class FillListener(object):
 
     def __call__(self, state: FillState, bank: Bank):
         keep_going = self.check_state(state, bank)
+        self.count += 1
         if not keep_going:
             return _STOP
-        self._increment()
         return self.is_over_threshold()
 
     def check_state(self, state: FillState, bank: Bank):
         raise NotImplementedError("subclass must implement")
-
-    def _increment(self) -> int:
-        self.count += 1
-        return self.count
 
     def is_over_threshold(self):
         return self.threshold is not None and self.count > self.threshold
@@ -186,14 +201,14 @@ class AllCompleteListener(FillListener):
 
     def __init__(self, threshold: int=None):
         super().__init__(threshold)
-        self.completed = []
+        self.completed = set()
 
     def value(self):
         return self.completed
 
     def check_state(self, state: FillState, bank: Bank):
         if state.is_complete() and bank.is_correct(state):
-            self.completed.append(state)
+            self.completed.add(state)
         return False
 
 

@@ -1,6 +1,7 @@
+from typing import Sequence, Tuple
 from unittest import TestCase
 import puzzicon
-from puzzicon.fill import Legend, FillState, Filler, Bank, FirstCompleteListener, AllCompleteListener, create_template_list, FillListener
+from puzzicon.fill import Legend, FillState, Filler, Bank, FirstCompleteListener, AllCompleteListener, FillListener
 from puzzicon.grid import GridModel
 import logging
 import tests
@@ -138,27 +139,59 @@ class BankTest(TestCase):
         actual = list(bank.filter(['A', 'B', None]))
         self.assertListEqual(['ABC', 'ABX'], actual)
 
+_WORDS_2x2 = ['AB', 'BD', 'CD', 'AC']
+_WORDS_3x3 = ['AB', 'CDE', 'FG', 'AC', 'BDF', 'EG']
+_NONWORDS_3x3 = ['AD', 'ADG', 'EDC', 'BF']
 
 # noinspection PyMethodMayBeStatic
 class FillerTest(TestCase):
 
-    def _do_fill_2x2(self, templates, listener: FillListener):
-        bank = create_bank('AB', 'BD', 'CD', 'AC', 'XY', 'GH', 'IJ')
+    def _do_fill_2x2(self, grid: GridModel, listener: FillListener):
+        wordlist = _WORDS_2x2 + ['XY', 'GH', 'IJ']
+        bank = create_bank(*wordlist)
+        return self._do_fill(grid, listener, bank)
+
+    def _do_fill(self, grid: GridModel, listener: FillListener, bank: Bank):
         filler = Filler(bank)
-        state = FillState(templates, Legend.empty())
+        state = FillState.from_grid(grid)
         filler.fill(state, listener)
         _log.info("count = %d", listener.count)
         return listener.value()
 
-    def test_fill_2x2(self):
+    def test_fill_2x2_first(self):
         grid = GridModel.build('____')
-        templates = create_template_list(grid)
-        filled = self._do_fill_2x2(templates, FirstCompleteListener(100000))
-        self.assertIsInstance(filled, FillState)
-        self.assertTupleEqual(templates, filled.templates)
-        self.assertTrue(filled.is_complete())
-        renderings = [filled.legend.render(template) for template in templates]
-        self.assertIn('AB', renderings)
-        self.assertIn('BD', renderings)
-        self.assertIn('CD', renderings)
-        self.assertIn('AC', renderings)
+        filled = self._do_fill_2x2(grid, FirstCompleteListener(100000))
+        self._check_2x2_filled(filled)
+
+    def _check_2x2_filled(self, state: FillState):
+        self.assertIsInstance(state, FillState)
+        templates = state.templates
+        self.assertTrue(state.is_complete())
+        renderings = [state.legend.render(template) for template in templates]
+        self.assertSetEqual(set(_WORDS_2x2), set(renderings))
+
+    def test_fill_2x2_all(self):
+        grid = GridModel.build('____')
+        all_filled = self._do_fill_2x2(grid, AllCompleteListener(100000))
+        self.assertIsInstance(all_filled, set)
+        for i, state in enumerate(all_filled):
+            self.assertIsInstance(state, FillState)
+            print("solution {}:\n{}\n".format(i + 1, state.render(grid)))
+            self._check_2x2_filled(all_filled.pop())
+        self.assertEqual(2, len(all_filled))
+
+    def _do_fill_3x3(self, grid: GridModel, listener: FillListener):
+        wordlist = _WORDS_3x3 + _NONWORDS_3x3
+        bank = create_bank(*wordlist)
+        return self._do_fill(grid, listener, bank)
+
+    def _check_3x3_filled(self, state: FillState):
+        self.assertIsInstance(state, FillState)
+        self.assertTrue(state.is_complete())
+        renderings = [state.legend.render(template) for template in state.templates]
+        self.assertSetEqual(set(_WORDS_3x3), set(renderings))
+
+    def test_fill_3x3_first(self):
+        grid = GridModel.build('__.___.__')
+        filled = self._do_fill_3x3(grid, FirstCompleteListener(100000))
+        self._check_3x3_filled(filled)
