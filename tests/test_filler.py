@@ -84,8 +84,6 @@ class ModuleTest(TestCase):
             self.assertListEqual(a, sorted(b))
 
 
-
-
 class FillStateTest(TestCase):
 
     def test_advance_basic(self):
@@ -93,15 +91,25 @@ class FillStateTest(TestCase):
         state1 = FillState.from_grid(grid)
         state2 = state1.advance({0: 'a', 1: 'b'})
         self.assertIs(state1.templates, state2.templates)
+        self.assertFalse(state2.known_incorrect)
         self.assertNotEqual(state1, state2)
         self.assertSetEqual({'ab'}, state2.used)
 
     def test_advance_additional_entries_added(self):
-        grid = GridModel.build("____")
         # noinspection PyTypeChecker
         state2 = FillState(((0,1),(2,3),(0,2),(1,3)), Legend(['a', 'b']), frozenset({'ab'}))
+        self.assertFalse(state2.known_incorrect)
         state3 = state2.advance({2: 'c', 3: 'd'})
+        self.assertFalse(state3.known_incorrect)
         self.assertSetEqual({'ab', 'cd', 'ac', 'bd'}, state3.used)
+
+    def test_advance_additional_entries_added_incorrect(self):
+        # noinspection PyTypeChecker
+        state2 = FillState(((0,1),(2,3),(0,2),(1,3)), Legend(['a', 'c']), frozenset({'ac'}))
+        self.assertFalse(state2.known_incorrect)
+        state3 = state2.advance({2: 'c', 3: 'd'})
+        self.assertTrue(state3.known_incorrect)
+        self.assertSetEqual({'ac', 'cd'}, state3.used)
 
     def test_is_template_filled(self):
         d = Legend(['a', None, 'c'])
@@ -211,7 +219,16 @@ class FillerTest(TestCase):
 
     def test_fill_2x2_first(self):
         grid = GridModel.build('____')
-        filled = self._do_fill_2x2(grid, FirstCompleteListener(100000))
+        class Counter(object):
+            known_incorrect_count = 0
+            def __call__(self, listener_, state, bank, result):
+                if state.known_incorrect:
+                    self.known_incorrect_count += 1
+        counter = Counter()
+        listener = FirstCompleteListener(100000)
+        listener.notify = counter
+        filled = self._do_fill_2x2(grid, listener)
+        _log.info("known incorrect: %s", counter.known_incorrect_count)
         self._check_2x2_filled(filled)
 
     def _check_2x2_filled(self, state: FillState):

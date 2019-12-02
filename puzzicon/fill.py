@@ -114,11 +114,14 @@ class FillState(tuple):
     def advance(self, legend_updates: Dict[int, str]) -> 'FillState':
         new_legend = self.legend.redefine(legend_updates)
         more_entries = []
+        updated_templates = set()
         for index in legend_updates:
             for template in filter(lambda t: index in t, self.templates):
-                if new_legend.is_all_defined(template):
-                    another_entry = new_legend.render(template)
-                    more_entries.append(another_entry)
+                updated_templates.add(template)
+        for template in updated_templates:
+            if new_legend.is_all_defined(template):
+                another_entry = new_legend.render(template)
+                more_entries.append(another_entry)
         used = frozenset(list(self.used) + more_entries)
         has_dupes = len(used) < (len(self.used) + len(more_entries))
         state = FillState(self.templates, new_legend, used, has_dupes)
@@ -182,14 +185,11 @@ class Bank(tuple):
         return filter(not_already_used, self.filter(pattern))
 
     def is_correct(self, state: FillState):
-        renderings = state.render_filled()
-        used = set()
-        for rendering in renderings:
-            if not rendering in self:
+        if state.known_incorrect:
+            return False
+        for rendering in state.used:
+            if not rendering in self:  # can we short-circuit this in suggest function?
                 return False
-            if rendering in used:
-                return False
-            used.add(rendering)
         return True
 
 
@@ -198,18 +198,23 @@ _STOP = True
 
 class FillListener(object):
 
-    def __init__(self, threshold: int=None):
+    def __init__(self, threshold: int=None, notify: Optional[Callable[['FillListener', FillState, Bank, bool], None]]=None):
         self.threshold = threshold
         self.count = 0
+        self.notify = notify
 
     def __call__(self, state: FillState, bank: Bank):
         keep_going = self.check_state(state, bank)
         self.count += 1
         if keep_going != _CONTINUE:
-            return _STOP
-        if self.is_over_threshold():
-            return _STOP
-        return _CONTINUE
+            result = _STOP
+        elif self.is_over_threshold():
+            result = _STOP
+        else:
+            result = _CONTINUE
+        if self.notify is not None:
+            self.notify(self, state, bank, result)
+        return result
 
     def check_state(self, state: FillState, bank: Bank):
         raise NotImplementedError("subclass must implement")
