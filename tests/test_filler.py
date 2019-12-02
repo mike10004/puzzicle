@@ -1,3 +1,4 @@
+import random
 from typing import Sequence, Tuple
 from unittest import TestCase
 import puzzicon
@@ -223,6 +224,9 @@ class FillerTest(TestCase):
 
     def test_fill_5x5_first(self):
         grid = GridModel.build('.._____________________..')
-        bank = create_bank(*(_WORDS_5x5 + _NONWORDS_5x5))
+        wordlist = list(_WORDS_5x5) + list(_NONWORDS_5x5)
+        rng = random.Random(0xf177)
+        rng.shuffle(wordlist)
+        bank = create_bank(*wordlist)
         state = self._do_fill(grid, FirstCompleteListener(100000), bank)
         self._check_filled(state, set(map(str.upper, _WORDS_5x5)))
