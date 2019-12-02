@@ -4,7 +4,7 @@
 from puzzicon import Puzzeme
 import puzzicon.grid
 from puzzicon.grid import GridModel
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, FrozenSet
+from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, FrozenSet, Collection
 
 _VALUE = 1
 _BLANK = '_'
@@ -111,8 +111,7 @@ class FillState(tuple):
             if not self.is_template_filled(template):
                 yield i
 
-    def advance(self, legend_updates: Dict[int, str]) -> 'FillState':
-        new_legend = self.legend.redefine(legend_updates)
+    def _list_new_entries(self, new_legend: Legend, legend_updates: Dict[int, str]) -> List[str]:
         more_entries = []
         updated_templates = set()
         for index in legend_updates:
@@ -122,6 +121,11 @@ class FillState(tuple):
             if new_legend.is_all_defined(template):
                 another_entry = new_legend.render(template)
                 more_entries.append(another_entry)
+        return more_entries
+
+    def advance(self, legend_updates: Dict[int, str]) -> 'FillState':
+        new_legend = self.legend.redefine(legend_updates)
+        more_entries = self._list_new_entries(new_legend, legend_updates)
         used = frozenset(list(self.used) + more_entries)
         has_dupes = len(used) < (len(self.used) + len(more_entries))
         state = FillState(self.templates, new_legend, used, has_dupes)
