@@ -62,7 +62,7 @@ def main():
     rng.shuffle(wordlist)
     bank = Bank(list(map(str.upper, _DICTIONARY_9x9)))
     state = FillState.from_grid(grid)
-    listener = FirstCompleteListener(1 * 1000 * 1000)
+    listener = FirstCompleteListener(100 * 1000)
     filler = Filler(bank)
     fill_start = time.perf_counter()
     filler.fill(state, listener)

@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import random
-from unittest import TestCase
+import sys
+import time
+from unittest import TestCase, SkipTest
 import puzzicon
 from puzzicon.fill import Legend, FillState, Filler, Bank, FirstCompleteListener, AllCompleteListener, FillListener
 from puzzicon.grid import GridModel
@@ -16,6 +18,11 @@ tests.configure_logging()
 
 def create_bank(*args):
     puzzemes = puzzicon.create_puzzeme_set(args)
+    return Bank([p.canonical for p in puzzemes])
+
+
+def create_bank_from_wordlist_file(pathname: str='/usr/share/dict/words'):
+    puzzemes = puzzicon.read_puzzeme_set(pathname)
     return Bank([p.canonical for p in puzzemes])
 
 
@@ -181,8 +188,20 @@ class BankTest(TestCase):
 
     def test_filter(self):
         bank = create_bank('ABC', 'DEF', 'ABX', 'G', 'HI', 'ACC')
-        actual = set(bank.filter(['A', 'B', None]))
+        actual = set(bank.filter(['A', 'B', None], set()))
         self.assertSetEqual({'ABC', 'ABX'}, actual)
+
+    def test_big_bank(self):
+        if not tests.is_long_tests_enabled():
+            raise SkipTest("long tests are not enabled")
+        start = time.perf_counter()
+        bank = create_bank_from_wordlist_file()
+        end = time.perf_counter()
+        print("sizeof(/usr/share/dict/words) =", sys.getsizeof(bank))
+        print("created in {} seconds".format(end - start))
+        matches = list(bank.filter(['A', None, None, 'L', 'E'], set()))
+        self.assertIn('APPLE', matches)
+        self.assertIn('ADDLE', matches)
 
 
 def _show_path(state: FillState, grid: GridModel):

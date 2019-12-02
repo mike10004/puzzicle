@@ -3,6 +3,8 @@
 
 from puzzicon import Puzzeme
 import puzzicon.grid
+from collections import defaultdict
+import itertools
 from puzzicon.grid import GridModel
 from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, FrozenSet, Collection
 
@@ -159,40 +161,67 @@ class FillState(tuple):
             rows.append(''.join(row))
         return newline.join(rows)
 
-
+def _powerset(iterable):
+    """powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"""
+    s = list(iterable)
+    return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1))
 
 class Bank(tuple):
 
-    def __new__(cls, entries: Sequence[str]):
+    by_pattern = None
+
+    def __new__(cls, entries: Sequence[str], pattern_registry_cap=9):
         # noinspection PyTypeChecker
         instance = super(Bank, cls).__new__(cls, entries)
+        instance.by_pattern = defaultdict(list)
+        for entry in entries:
+            if len(entry) <= pattern_registry_cap:
+                patterns = Bank.patterns(entry)
+                for pattern in patterns:
+                    instance.by_pattern[pattern].append(entry)
         return instance
+
+    @staticmethod
+    def patterns(entry: str) -> List[Tuple]:
+        positions = [i for i in range(len(entry))]
+        patterns = []
+        for subset in _powerset(positions):
+            pattern = tuple([(entry[i] if i in subset else None) for i in range(len(entry))])
+            patterns.append(pattern)
+        return patterns
 
     @staticmethod
     def matches(entry, pattern):
         if len(entry) != len(pattern):
             return False
         for i in range(len(pattern)):
-            if pattern[i] is not None:
-                if pattern[i] != entry[i]:
-                    return False
+            if pattern[i] is not None and pattern[i] != entry[i]:
+                return False
         return True
 
-    def filter(self, pattern: Sequence[Optional[str]]) -> Iterator[str]:
-        return filter(lambda entry: Bank.matches(entry, pattern), self)
+    def filter(self, pattern: Sequence[Optional[str]], already_used: Collection[str]) -> Iterator[str]:
+        if not isinstance(pattern, tuple):
+            pattern = tuple(pattern)
+        try:
+            pattern_matches = self.by_pattern[pattern]
+        except KeyError:
+            # return _EMPTY_SET.__iter__()   # TODO keep track of cap on instantiation and return empty set if entry length is under the cap
+            return filter(lambda entry: Bank.matches(entry, pattern), self)
+        return filter(lambda x: x not in already_used, pattern_matches)
 
     def suggest(self, state: FillState, template_i: int) -> Iterator[str]:
         indexes = state.templates[template_i]
         pattern = [state.legend.get(index) for index in indexes]
-        def not_already_used(entry: str):
-            return entry not in state.used
-        return filter(not_already_used, self.filter(pattern))
+        return self.filter(pattern, state.used)
+
+    def has_word(self, entry: str):
+        return entry in self
 
     def is_correct(self, state: FillState):
         if state.known_incorrect:
             return False
         for rendering in state.used:
-            if not rendering in self:  # can we short-circuit this in suggest function?
+            if not self.has_word(rendering):  # can we short-circuit this in suggest function?
                 return False
         return True
 

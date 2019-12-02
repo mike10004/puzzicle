@@ -95,3 +95,7 @@ class _Data(object):
 
 
 data = _Data()
+
+
+def is_long_tests_enabled():
+    return False
