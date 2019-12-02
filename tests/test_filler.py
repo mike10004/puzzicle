@@ -61,11 +61,11 @@ class LegendTest(TestCase):
 class FillStateTest(TestCase):
 
     # noinspection PyTypeChecker
-    def advance(self):
+    def test_advance(self):
         d = Legend(['a', None, 'c'])
         templates = ((1, 2), (3, 4), (5, 6))
         state = FillState(templates, d)
-        other = state.advance(Legend(['a', None, 'c', 'd']))
+        other = state.advance({3: 'd'}, 'oogabooga')
         self.assertIs(state.templates, other.templates)
         self.assertNotEqual(state, other)
 
@@ -139,8 +139,8 @@ class BankTest(TestCase):
 
     def test_filter(self):
         bank = create_bank('ABC', 'DEF', 'ABX', 'G', 'HI', 'ACC')
-        actual = list(bank.filter(['A', 'B', None]))
-        self.assertListEqual(['ABC', 'ABX'], actual)
+        actual = set(bank.filter(['A', 'B', None]))
+        self.assertSetEqual({'ABC', 'ABX'}, actual)
 
 
 def _show_path(state: FillState, grid: GridModel):

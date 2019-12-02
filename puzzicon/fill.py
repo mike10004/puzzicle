@@ -4,7 +4,7 @@
 from puzzicon import Puzzeme
 import puzzicon.grid
 from puzzicon.grid import GridModel
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable
+from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, FrozenSet
 
 _VALUE = 1
 _BLANK = '_'
@@ -53,16 +53,24 @@ class Legend(tuple):
     def empty():
         return Legend([])
 
+
+_EMPTY_SET = frozenset()
+
+
 class FillState(tuple):
 
-    templates, legend = None, None
+    templates, legend, used = None, None, None
     previous = None
 
-    def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend):
+    def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend, used: FrozenSet[str]=_EMPTY_SET):
+        assert isinstance(templates, tuple)
+        assert isinstance(legend, Legend)
+        assert isinstance(used, frozenset)
         # noinspection PyTypeChecker
         instance = super(FillState, cls).__new__(cls, [templates, legend])
         instance.templates = templates
         instance.legend = legend
+        instance.used = used
         return instance
 
     def is_template_filled(self, template: Tuple[int, ...]):
@@ -89,8 +97,10 @@ class FillState(tuple):
             if not self.is_template_filled(template):
                 yield i
 
-    def advance(self, new_legend: Legend) -> 'FillState':
-        state = FillState(self.templates, new_legend)
+    def advance(self, legend_updates: Dict[int, str], new_entry) -> 'FillState':
+        new_legend = self.legend.redefine(legend_updates)
+        used = frozenset(list(self.used) + [new_entry])
+        state = FillState(self.templates, new_legend, used)
         state.previous = self
         return state
 
@@ -103,7 +113,7 @@ class FillState(tuple):
                 index = grid.get_index(square)
                 indexes.append(index)
             templates.append(tuple(indexes))
-        return FillState(tuple(templates), Legend.empty())
+        return FillState(tuple(templates), Legend.empty(), frozenset())
 
     # noinspection PyProtectedMember
     def render(self, grid: GridModel, newline="\n", none_val='_', dark=puzzicon.grid._DARK) -> str:
@@ -240,9 +250,10 @@ class Filler(object):
             for entry in self.bank.suggest(state, template_i):
                 updates = {}
                 for i in range(len(entry)):
-                    updates[template[i]] = entry[i]
-                legend = state.legend.redefine(updates)
-                new_state = state.advance(legend)
+                    position = template[i]
+                    if position not in state.legend:
+                        updates[position] = entry[i]
+                new_state = state.advance(updates, entry)
                 continue_now = self._fill(new_state, listener)
                 if continue_now != _CONTINUE:
                     action_flag = _STOP
