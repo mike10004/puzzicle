@@ -154,6 +154,8 @@ def _show_path(state: FillState, grid: GridModel):
 _WORDS_2x2 = ['AB', 'BD', 'CD', 'AC']
 _WORDS_3x3 = ['AB', 'CDE', 'FG', 'AC', 'BDF', 'EG']
 _NONWORDS_3x3 = ['AD', 'ADG', 'EDC', 'BF']
+_WORDS_5x5 = ['cod', 'khaki', 'noble', 'islam', 'tee', 'knit', 'hose', 'cable', 'okla', 'diem']
+_NONWORDS_5x5 = _WORDS_2x2 + ['mob', 'wed', 'yalow', 'downy', 'flabber', 'patter', 'dyad', 'infect', 'fest', 'feast']
 
 # noinspection PyMethodMayBeStatic
 class FillerTest(TestCase):
@@ -206,7 +208,21 @@ class FillerTest(TestCase):
     def _check_3x3_filled(self, state: FillState):
         self._check_filled(state, _WORDS_3x3)
 
+    def test_fill_2x2_low_threshold(self):
+        grid = GridModel.build('____')
+        threshold = 10
+        listener = FirstCompleteListener(threshold)
+        result = self._do_fill_2x2(grid, listener)
+        self.assertIsNone(result)
+        self.assertEqual(threshold, listener.count)
+
     def test_fill_3x3_first(self):
         grid = GridModel.build('__.___.__')
         filled = self._do_fill_3x3(grid, FirstCompleteListener(100000))
         self._check_3x3_filled(filled)
+
+    def test_fill_5x5_first(self):
+        grid = GridModel.build('.._____________________..')
+        bank = create_bank(*(_WORDS_5x5 + _NONWORDS_5x5))
+        state = self._do_fill(grid, FirstCompleteListener(100000), bank)
+        self._check_filled(state, set(map(str.upper, _WORDS_5x5)))

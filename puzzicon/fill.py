@@ -175,15 +175,17 @@ class FillListener(object):
     def __call__(self, state: FillState, bank: Bank):
         keep_going = self.check_state(state, bank)
         self.count += 1
-        if not keep_going:
+        if keep_going != _CONTINUE:
             return _STOP
-        return self.is_over_threshold()
+        if self.is_over_threshold():
+            return _STOP
+        return _CONTINUE
 
     def check_state(self, state: FillState, bank: Bank):
         raise NotImplementedError("subclass must implement")
 
     def is_over_threshold(self):
-        return self.threshold is not None and self.count > self.threshold
+        return self.threshold is not None and self.count >= self.threshold
 
     def value(self):
         raise NotImplementedError("subclass must implement")
@@ -216,7 +218,7 @@ class AllCompleteListener(FillListener):
     def check_state(self, state: FillState, bank: Bank):
         if state.is_complete() and bank.is_correct(state):
             self.completed.add(state)
-        return False
+        return _CONTINUE
 
 
 class Filler(object):
@@ -230,8 +232,8 @@ class Filler(object):
         return listener
 
     def _fill(self, state: FillState, listener: Callable[[FillState, Bank], bool]) -> bool:
-        if not listener(state, self.bank):
-            return False
+        if listener(state, self.bank) == _STOP:
+            return _STOP
         action_flag = _CONTINUE
         for template_i in state.unfilled():
             template = state.templates[template_i]
@@ -245,5 +247,7 @@ class Filler(object):
                 if continue_now != _CONTINUE:
                     action_flag = _STOP
                     break
+            if action_flag == _STOP:
+                break
         return action_flag
 
