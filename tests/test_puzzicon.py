@@ -87,13 +87,13 @@ class TestPuzzeme(unittest.TestCase):
 
 
 
-class TestPuzzerarian(unittest.TestCase):
+class TestPuzzarian(unittest.TestCase):
 
     def test_search_many(self):
         p = Puzzarian(_DEFAULT_PUZZEME_SET)
-        results = p.search([lambda p: p.canonical.startswith('PUZZ')])
+        results = p.search([lambda z: z.canonical.startswith('PUZZ')])
         results = list(results)
-        self.assertEqual(10, len(results))
+        self.assertEqual(8, len(results))
 
     def test_search_one(self):
         p = Puzzarian(_DEFAULT_PUZZEME_SET)
