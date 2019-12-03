@@ -4,6 +4,7 @@
 import random
 import sys
 import time
+from typing import Tuple, Optional
 from unittest import TestCase, SkipTest
 import puzzicon
 from puzzicon.fill import Legend, FillState, Filler, Bank, FirstCompleteListener, AllCompleteListener, FillListener
@@ -54,16 +55,30 @@ class LegendTest(TestCase):
         self.assertEqual('a_c', d.render([0, 1, 4]))
         self.assertEqual('___', d.render([3, 1, 10]))
 
-    def redefine_1(self):
+    def test_redefine_1(self):
         d = Legend(['a', None, 'c'])
         f = d.redefine({1: 'b'})
         self.assertEqual(('a', 'b', 'c'), f)
 
-    def redefine_2(self):
+    def test_redefine_2(self):
         d = Legend(['a', None, 'c'])
         f = d.redefine({5: 'b'})
         self.assertEqual(('a', None, 'c', None, None, 'b'), f)
 
+    def test_render_after(self):
+        d = Legend(['a', None, 'c', None])
+        actual = d.render_after([0, 1, 2], {1: 'b'})
+        self.assertEqual('abc', actual)
+
+    def test_is_all_defined_after_true(self):
+        d = Legend(['a', None, 'c', None])
+        actual = d.is_all_defined_after([0, 1, 2], {1: 'b'})
+        self.assertTrue(actual)
+
+    def test_is_all_defined_after_false(self):
+        d = Legend(['a', None, 'c', None])
+        actual = d.is_all_defined_after([0, 3, 2], {1: 'b'})
+        self.assertFalse(actual)
 
 class ModuleTest(TestCase):
 
@@ -150,6 +165,8 @@ class FillStateTest(TestCase):
             (5, 2),
             (4, 4, 4, 0, 4, 2),
         )
+        state = FillState(templates, Legend(['a', 'b', 'c', 'd', 'e', 'f']))
+        self.assertFalse(state.is_complete())
 
     # noinspection PyTypeChecker
     def test_unfilled(self):
@@ -180,7 +197,6 @@ class BankTest(TestCase):
             with self.subTest():
                 self.assertTrue(Bank.matches(entry, pattern))
 
-
     def test_matches_false(self):
         bad = [
             ('ABC', ['X', None, 'C']),
@@ -192,9 +208,17 @@ class BankTest(TestCase):
             with self.subTest():
                 self.assertFalse(Bank.matches(entry, pattern))
 
+    def test_list_new_entries(self):
+        # bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP')
+        used: Tuple[Optional[str], ...] = ('AB', None, None, None)
+        templates: Tuple[Tuple[int, ...], ...] = ((0,1),(2,3),(0,2),(1,3))
+        state = FillState(templates, Legend(['A', 'B', None, None]), used, False)
+        actual = Bank.list_new_entries('CD', 1, state)
+        self.assertDictEqual({2: 'AC', 3: 'BD'}, actual)
+
     def test_filter(self):
         bank = create_bank('ABC', 'DEF', 'ABX', 'G', 'HI', 'ACC')
-        actual = set(bank.filter(['A', 'B', None], set()))
+        actual = set(bank.filter(['A', 'B', None]))
         self.assertSetEqual({'ABC', 'ABX'}, actual)
 
     def test_big_bank(self):
@@ -205,7 +229,7 @@ class BankTest(TestCase):
         end = time.perf_counter()
         print("sizeof(/usr/share/dict/words) =", sys.getsizeof(bank))
         print("created in {} seconds".format(end - start))
-        matches = list(bank.filter(['A', None, None, 'L', 'E'], set()))
+        matches = list(bank.filter(['A', None, None, 'L', 'E']))
         self.assertIn('APPLE', matches)
         self.assertIn('ADDLE', matches)
 

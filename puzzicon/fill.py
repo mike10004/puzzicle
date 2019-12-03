@@ -40,8 +40,18 @@ class Legend(tuple):
             values_list[k] = v
         return Legend(values_list)
 
-    def render(self, indexes):
+    def render(self, indexes: Sequence[int]):
         return ''.join(map(lambda val: _BLANK if val is None else val, map(lambda index: self.get(index), indexes)))
+
+    def render_after(self, indexes: Sequence[int], updates: Dict[int, str]):
+        def get_value(index: int):
+            value = self.get(index)
+            if value is None:
+                value = updates.get(index, None)
+            if value is None:
+                value = _BLANK
+            return value
+        return ''.join(map(get_value, indexes))
 
     def redefine(self, definitions: Dict[int, str]):
         mutable = list(self)
@@ -58,6 +68,13 @@ class Legend(tuple):
     def is_all_defined(self, indexes: Sequence[int]):
         for index in indexes:
             if not self.has_value(index):
+                return False
+        return True
+
+    def is_all_defined_after(self, indexes: Sequence[int], legend_updates: Dict[int, str]):
+        """Tests whether each index is defined in either this legend or a set of updates."""
+        for index in indexes:
+            if not self.has_value(index) and index not in legend_updates:
                 return False
         return True
 
@@ -81,7 +98,7 @@ class FillState(tuple):
     templates, legend, used = None, None, None
     previous = None
 
-    def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend, used: Tuple[Optional[str]]=None, known_incorrect: bool=False):
+    def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend, used: Tuple[Optional[str], ...]=None, known_incorrect: bool=False):
         assert isinstance(templates, tuple)
         assert isinstance(legend, Legend)
         assert used is None or isinstance(used, tuple), "used has wrong type: {}".format(used)
@@ -178,11 +195,14 @@ def _powerset(iterable):
 
 class Bank(tuple):
 
+    word_set = None
     by_pattern = None
 
     def __new__(cls, entries: Sequence[str], pattern_registry_cap=9):
+        word_set = frozenset(entries)
         # noinspection PyTypeChecker
-        instance = super(Bank, cls).__new__(cls, entries)
+        instance = super(Bank, cls).__new__(cls, [word_set])
+        instance.word_set = word_set
         instance.by_pattern = defaultdict(list)
         for entry in entries:
             if len(entry) <= pattern_registry_cap:
@@ -209,23 +229,70 @@ class Bank(tuple):
                 return False
         return True
 
-    def filter(self, pattern: Sequence[Optional[str]], already_used: Collection[str]) -> Iterator[str]:
+    def filter(self, pattern: Sequence[Optional[str]]) -> Iterator[str]:
         if not isinstance(pattern, tuple):
             pattern = tuple(pattern)
         try:
             pattern_matches = self.by_pattern[pattern]
         except KeyError:
-            # return _EMPTY_SET.__iter__()   # TODO keep track of cap on instantiation and return empty set if entry length is under the cap
+            # This will happen either because (a) zero words correspond to the pattern, or (b) the pattern
+            # was not registered because its length is above the registry cap
+            # TODO keep track of cap on instantiation and return empty set if entry length is under the cap
             return filter(lambda entry: Bank.matches(entry, pattern), self)
-        return filter(lambda x: x not in already_used, pattern_matches)
+        return pattern_matches.__iter__()
 
     def suggest(self, state: FillState, template_i: int) -> Iterator[str]:
         indexes = state.templates[template_i]
         pattern = [state.legend.get(index) for index in indexes]
-        return self.filter(pattern, state.used)
+        matches = self.filter(pattern)
+        unused = filter(Bank.not_already_used_predicate(state.used), matches)
+        def stays_correct(entry):
+            # we could optimize by not generating this entire list before checking each one
+            new_entries = Bank.list_new_entries(entry, template_i, state)
+            new_entries_set = set()
+            for new_entry in new_entries.values():
+                if (new_entry in new_entries_set) or not self.is_valid_new_entry(state, new_entry):
+                    return False
+                new_entries_set.add(new_entry)
+            return True
+        return filter(stays_correct, unused)
+
+    @staticmethod
+    def not_already_used_predicate(already_used: Collection[str]) -> Callable[[str], bool]:
+        def not_already_used(entry):
+            return entry not in already_used
+        return not_already_used
+
+    def is_valid_new_entry(self, state: FillState, entry: str):
+        return entry not in state.used and self.has_word(entry)
+
+    @staticmethod
+    def list_new_entries(entry: str, template_idx: int, state: FillState) -> Dict[int, str]:
+        """
+        Return a map of template index to completed entry for all filled
+        templates *except* the template corresponding to the given index.
+        """
+        template = state.templates[template_idx]
+        legend_updates: Dict[int, str] = {}
+        for i in range(len(entry)):
+            k, v = template[i], entry[i]
+            if state.legend.get(k) != v:
+                legend_updates[k] = v
+        more_entries = {}
+        updated_templates = set()
+        for t_idx, template in enumerate(state.templates):
+            if t_idx != template_idx:
+                for index in legend_updates:
+                    if index in template:
+                        updated_templates.add((t_idx, template))
+        for t_idx, template in updated_templates:
+            if state.legend.is_all_defined_after(template, legend_updates):
+                another_entry = state.legend.render_after(template, legend_updates)
+                more_entries[t_idx] = another_entry
+        return more_entries
 
     def has_word(self, entry: str):
-        return entry in self
+        return entry in self.word_set
 
     def is_correct(self, state: FillState):
         if state.known_incorrect:
