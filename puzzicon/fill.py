@@ -204,11 +204,14 @@ class FillState(NamedTuple):
         legend_updates = self.to_legend_updates_dict(entry, template_idx)
         return self.list_new_entries_using_updates(legend_updates, template_idx, False)
 
-    def list_new_entries_using_updates(self, legend_updates: Dict[int, str], template_idx: int, include_template_idx: bool) -> Dict[int, str]:
+    def list_new_entries_using_updates(self, legend_updates: Dict[int, str], template_idx: int, include_template_idx: bool, evaluator: Optional[Callable]=None) -> Optional[Dict[int, str]]:
         """
         Return a map of template index to completed entry for all filled
         templates. The template corresponding to the given index is included
         in the set of updates only if include_template_idx is true.
+
+        If an evaluator is provided, it must accept a word as an argument and return False if the word is not valid.
+        This aborts the process of listing new entries and returns early with None.
         """
         updated_templates = set()
         for t_idx, template in enumerate(self.templates):
@@ -220,6 +223,8 @@ class FillState(NamedTuple):
         for t_idx, template in updated_templates:
             if self.legend.is_all_defined_after(template, legend_updates):
                 another_entry = self.legend.render_after(template, legend_updates)
+                if evaluator is not None and (not evaluator(another_entry)):
+                    return None
                 more_entries[t_idx] = another_entry
         return more_entries
 
@@ -299,21 +304,17 @@ class Bank(NamedTuple):
         matches = self.filter(pattern)
         unused = filter(Bank.not_already_used_predicate(state.used), matches)
         updates_iter = map(lambda entry: state.to_legend_updates_dict(entry, template_idx), unused)
-        def stays_correct(legend_updates: Dict[int, str], new_entries_dict: Dict[int, str]):
-            # we could optimize by not generating this entire list before checking each one
-            new_entries = state.list_new_entries_using_updates(legend_updates, template_idx, True)
-            new_entries_set = set()
-            for t_idx, new_entry in new_entries.items():
-                # test if already in this new batch of entries, already in set of used words in state, or would be incorrect
-                if (new_entry in new_entries_set) or not self.is_valid_new_entry(state, new_entry):
-                    return False
-                new_entries_set.add(new_entry)
-            new_entries_dict.update(new_entries)
-            return True
         for legend_updates_ in updates_iter:
-            new_entries_dict_ = {}
-            if stays_correct(legend_updates_, new_entries_dict_):
-                yield Suggestion(legend_updates_, new_entries_dict_)
+            evaluator = lambda entry: self.is_valid_new_entry(state, entry)
+            new_entries = state.list_new_entries_using_updates(legend_updates_, template_idx, True, evaluator)
+            if new_entries is not None:
+                new_entries_set = set()
+                for t_idx, new_entry in new_entries.items():
+                    # test if already in this new batch of entries, already in set of used words in state, or would be incorrect
+                    if (new_entry in new_entries_set) or not self.is_valid_new_entry(state, new_entry):
+                        return False
+                    new_entries_set.add(new_entry)
+                yield Suggestion(legend_updates_, new_entries)
 
     @staticmethod
     def not_already_used_predicate(already_used: Collection[str]) -> Callable[[str], bool]:
