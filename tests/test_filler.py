@@ -181,6 +181,11 @@ class FillStateTest(TestCase):
         unfilled = list(state.unfilled())
         self.assertListEqual([2, 4], unfilled)
 
+    def test_to_legend_updates(self):
+        state = FillState(((0, 1), (0, 2), (1, 3), (2, 3)), Legend(['G', 'H']), ('GH', None, None, None), False)
+        actual = state.to_legend_updates_dict('GX', 1)
+        self.assertDictEqual({2: 'X'}, actual)
+
 
 class BankTest(TestCase):
 

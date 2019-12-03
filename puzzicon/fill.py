@@ -6,10 +6,14 @@ import puzzicon.grid
 from collections import defaultdict
 import itertools
 from puzzicon.grid import GridModel
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, FrozenSet, Collection
+from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, FrozenSet, Collection, Set
+import logging
 
+
+_log = logging.getLogger(__name__)
 _VALUE = 1
 _BLANK = '_'
+
 
 class Legend(tuple):
 
@@ -54,6 +58,7 @@ class Legend(tuple):
         return ''.join(map(get_value, indexes))
 
     def redefine(self, definitions: Dict[int, str]):
+        assert definitions, "definitions set must be nonempty; otherwise just reuse existing legend"
         mutable = list(self)
         for i in range(len(mutable), max(definitions.keys()) + 1):
             mutable.append(None)
@@ -89,8 +94,16 @@ def _sort_and_check_duplicates(items: list):
     return False
 
 
-def _NOT_NONE(x):
+def _NOT_NONE(x: Optional[str]):
     return x is not None
+
+
+class Suggestion(object):
+
+    def __init__(self, legend_updates: Dict[int, str], new_entries: Dict[int, str]):
+        self.legend_updates = legend_updates
+        self.new_entries = new_entries
+        assert new_entries, "suggestion must contain at least one new entry"
 
 
 class FillState(tuple):
@@ -98,15 +111,17 @@ class FillState(tuple):
     templates, legend, used = None, None, None
     previous = None
 
-    def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend, used: Tuple[Optional[str], ...]=None, known_incorrect: bool=False):
+    def __new__(cls, templates: Tuple[Tuple[int, ...], ...], legend: Legend, used: Tuple[Optional[str], ...]=None, known_incorrect: bool=False):
         assert isinstance(templates, tuple)
         assert isinstance(legend, Legend)
+        if used is None:
+            used = tuple([None] * len(templates))
         assert used is None or isinstance(used, tuple), "used has wrong type: {}".format(used)
         # noinspection PyTypeChecker
         instance = super(FillState, cls).__new__(cls, [templates, legend, used, known_incorrect])
         instance.templates = templates
         instance.legend = legend
-        instance.used = tuple([None] * len(templates)) if used is None else used
+        instance.used = used
         instance.known_incorrect = known_incorrect
         return instance
 
@@ -118,10 +133,7 @@ class FillState(tuple):
 
     def is_complete(self):
         # could make this a set first at the expense of memory, but it's only max twice as big
-        for template in self.templates:
-            if not self.is_template_filled(template):
-                return False
-        return True
+        return all(self.used)
 
     def render_filled(self) -> Iterator[str]:
         return filter(_NOT_NONE, self.used)
@@ -147,6 +159,15 @@ class FillState(tuple):
                 another_entry = new_legend.render(template)
                 more_entries[t_idx] = another_entry
         return more_entries
+
+    def advance_unchecked(self, suggestion: Suggestion) -> 'FillState':
+        new_legend = self.legend.redefine(suggestion.legend_updates)
+        new_used: List[Optional[str]] = list(self.used)
+        for template_idx, new_entry in suggestion.new_entries.items():
+            new_used[template_idx] = new_entry
+        state = FillState(self.templates, new_legend, tuple(new_used), False)
+        state.previous = self
+        return state
 
     def advance(self, legend_updates: Dict[int, str]) -> 'FillState':
         new_legend = self.legend.redefine(legend_updates)
@@ -188,10 +209,23 @@ class FillState(tuple):
             rows.append(''.join(row))
         return newline.join(rows)
 
+    def to_legend_updates_dict(self, entry: str, template_idx: int) -> Dict[int, str]:
+        template = self.templates[template_idx]
+        legend_updates: Dict[int, str] = {}
+        for i in range(len(entry)):
+            k, v = template[i], entry[i]
+            if self.legend.get(k) != v:
+                legend_updates[k] = v
+        if not legend_updates:
+            _log.warning("no updates made to %s from entry '%s', template %d", self, entry, template_idx)
+        return legend_updates
+
+
 def _powerset(iterable):
     """powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"""
     s = list(iterable)
     return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1))
+
 
 class Bank(tuple):
 
@@ -241,21 +275,44 @@ class Bank(tuple):
             return filter(lambda entry: Bank.matches(entry, pattern), self)
         return pattern_matches.__iter__()
 
-    def suggest(self, state: FillState, template_i: int) -> Iterator[str]:
-        indexes = state.templates[template_i]
+    def suggest(self, state: FillState, template_idx: int) -> Iterator[str]:
+        indexes = state.templates[template_idx]
         pattern = [state.legend.get(index) for index in indexes]
         matches = self.filter(pattern)
         unused = filter(Bank.not_already_used_predicate(state.used), matches)
         def stays_correct(entry):
             # we could optimize by not generating this entire list before checking each one
-            new_entries = Bank.list_new_entries(entry, template_i, state)
+            new_entries = Bank.list_new_entries(entry, template_idx, state)
             new_entries_set = set()
             for new_entry in new_entries.values():
+                # test if already in this new batch of entries, already in set of used words in state, or would be incorrect
                 if (new_entry in new_entries_set) or not self.is_valid_new_entry(state, new_entry):
                     return False
                 new_entries_set.add(new_entry)
             return True
         return filter(stays_correct, unused)
+
+    def suggest_updates(self, state: FillState, template_idx: int) -> Iterator[Suggestion]:
+        indexes = state.templates[template_idx]
+        pattern = [state.legend.get(index) for index in indexes]
+        matches = self.filter(pattern)
+        unused = filter(Bank.not_already_used_predicate(state.used), matches)
+        updates_iter = map(lambda entry: state.to_legend_updates_dict(entry, template_idx), unused)
+        def stays_correct(legend_updates: Dict[int, str], new_entries_dict: Dict[int, str]):
+            # we could optimize by not generating this entire list before checking each one
+            new_entries = Bank.list_new_entries_using_updates(legend_updates, template_idx, state, True)
+            new_entries_set = set()
+            for t_idx, new_entry in new_entries.items():
+                # test if already in this new batch of entries, already in set of used words in state, or would be incorrect
+                if (new_entry in new_entries_set) or not self.is_valid_new_entry(state, new_entry):
+                    return False
+                new_entries_set.add(new_entry)
+            new_entries_dict.update(new_entries)
+            return True
+        for legend_updates_ in updates_iter:
+            new_entries_dict_ = {}
+            if stays_correct(legend_updates_, new_entries_dict_):
+                yield Suggestion(legend_updates_, new_entries_dict_)
 
     @staticmethod
     def not_already_used_predicate(already_used: Collection[str]) -> Callable[[str], bool]:
@@ -272,19 +329,23 @@ class Bank(tuple):
         Return a map of template index to completed entry for all filled
         templates *except* the template corresponding to the given index.
         """
-        template = state.templates[template_idx]
-        legend_updates: Dict[int, str] = {}
-        for i in range(len(entry)):
-            k, v = template[i], entry[i]
-            if state.legend.get(k) != v:
-                legend_updates[k] = v
-        more_entries = {}
+        legend_updates = state.to_legend_updates_dict(entry, template_idx)
+        return Bank.list_new_entries_using_updates(legend_updates, template_idx, state, False)
+
+    @staticmethod
+    def list_new_entries_using_updates(legend_updates: Dict[int, str], template_idx: int, state: FillState, include_template_idx: bool) -> Dict[int, str]:
+        """
+        Return a map of template index to completed entry for all filled
+        templates. The template corresponding to the given index is included
+        in the set of updates only if include_template_idx is true.
+        """
         updated_templates = set()
         for t_idx, template in enumerate(state.templates):
-            if t_idx != template_idx:
+            if include_template_idx or (t_idx != template_idx):
                 for index in legend_updates:
                     if index in template:
                         updated_templates.add((t_idx, template))
+        more_entries = {}
         for t_idx, template in updated_templates:
             if state.legend.is_all_defined_after(template, legend_updates):
                 another_entry = state.legend.render_after(template, legend_updates)
@@ -293,14 +354,6 @@ class Bank(tuple):
 
     def has_word(self, entry: str):
         return entry in self.word_set
-
-    def is_correct(self, state: FillState):
-        if state.known_incorrect:
-            return False
-        for rendering in state.used:
-            if not self.has_word(rendering):  # can we short-circuit this in suggest function?
-                return False
-        return True
 
     def __str__(self):
         return "Bank<num_words={},num_patterns_registered={}>".format(len(self.word_set), len(self.by_pattern))
@@ -345,7 +398,7 @@ class FirstCompleteListener(FillListener):
         self.completed = None
 
     def check_state(self, state: FillState, bank: Bank):
-        if state.is_complete() and bank.is_correct(state):
+        if not state.known_incorrect and state.is_complete():
             self.completed = state
             return _STOP
         return _CONTINUE
@@ -364,7 +417,7 @@ class AllCompleteListener(FillListener):
         return self.completed
 
     def check_state(self, state: FillState, bank: Bank):
-        if state.is_complete() and bank.is_correct(state):
+        if not state.known_incorrect and state.is_complete():
             self.completed.add(state)
         return _CONTINUE
 
@@ -383,15 +436,9 @@ class Filler(object):
         if listener(state, self.bank) == _STOP:
             return _STOP
         action_flag = _CONTINUE
-        for template_i in state.unfilled():
-            template = state.templates[template_i]
-            for entry in self.bank.suggest(state, template_i):
-                updates = {}
-                for i in range(len(entry)):
-                    position = template[i]
-                    if position not in state.legend:
-                        updates[position] = entry[i]
-                new_state = state.advance(updates)
+        for template_idx in state.unfilled():
+            for legend_updates in self.bank.suggest_updates(state, template_idx):
+                new_state = state.advance_unchecked(legend_updates)
                 continue_now =  self._fill(new_state, listener)
                 if continue_now != _CONTINUE:
                     action_flag = _STOP
