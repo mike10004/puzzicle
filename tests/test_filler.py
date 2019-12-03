@@ -67,6 +67,12 @@ class LegendTest(TestCase):
 
 class ModuleTest(TestCase):
 
+    def test__sort_and_check_duplicates_presorted_hasdupes_words(self):
+        a = ['ac', 'cd', 'ac', 'cd']
+        b = a.copy()
+        self.assertTrue(puzzicon.fill._sort_and_check_duplicates(a))
+        self.assertListEqual(a, sorted(b))
+
     def test__sort_and_check_duplicates_presorted_nodupes(self):
         a = [1, 2, 3]
         self.assertFalse(puzzicon.fill._sort_and_check_duplicates(a))
@@ -98,25 +104,25 @@ class FillStateTest(TestCase):
         state1 = FillState.from_grid(grid)
         state2 = state1.advance({0: 'a', 1: 'b'})
         self.assertIs(state1.templates, state2.templates)
-        self.assertFalse(state2.known_incorrect)
+        self.assertFalse(state2.known_incorrect, "expect known_incorrect=False")
         self.assertNotEqual(state1, state2)
-        self.assertSetEqual({'ab'}, state2.used)
+        self.assertSetEqual({'ab'}, set(state2.render_filled()))
 
     def test_advance_additional_entries_added(self):
         # noinspection PyTypeChecker
-        state2 = FillState(((0,1),(2,3),(0,2),(1,3)), Legend(['a', 'b']), frozenset({'ab'}))
+        state2 = FillState(((0,1),(2,3),(0,2),(1,3)), Legend(['a', 'b']), ('ab', None, None, None))
         self.assertFalse(state2.known_incorrect)
         state3 = state2.advance({2: 'c', 3: 'd'})
         self.assertFalse(state3.known_incorrect)
-        self.assertSetEqual({'ab', 'cd', 'ac', 'bd'}, state3.used)
+        self.assertSetEqual({'ab', 'cd', 'ac', 'bd'}, set(state3.render_filled()))
 
     def test_advance_additional_entries_added_incorrect(self):
         # noinspection PyTypeChecker
-        state2 = FillState(((0,1),(2,3),(0,2),(1,3)), Legend(['a', 'c']), frozenset({'ac'}))
+        state2 = FillState(((0,1),(2,3),(0,2),(1,3)), Legend(['a', 'c']), ('ac', None, None, None))
         self.assertFalse(state2.known_incorrect)
         state3 = state2.advance({2: 'c', 3: 'd'})
-        self.assertTrue(state3.known_incorrect)
-        self.assertSetEqual({'ac', 'cd'}, state3.used)
+        self.assertTrue(state3.known_incorrect, "expect known_incorrect=True")
+        self.assertSetEqual({'ac', 'cd'}, set(state3.render_filled()))
 
     def test_is_template_filled(self):
         d = Legend(['a', None, 'c'])
@@ -154,7 +160,7 @@ class FillStateTest(TestCase):
             (5, 2),
             (4, 9, 4, 0, 4, 2),
         )
-        state = FillState(templates, Legend(['a', 'b', 'c', 'd', 'e', 'f']))
+        state = FillState(templates, Legend(['a', 'b', 'c', 'd', 'e', 'f']), ('abc', 'cac', None, 'ec', None))
         unfilled = list(state.unfilled())
         self.assertListEqual([2, 4], unfilled)
 

@@ -72,20 +72,24 @@ def _sort_and_check_duplicates(items: list):
     return False
 
 
+def _NOT_NONE(x):
+    return x is not None
+
+
 class FillState(tuple):
 
     templates, legend, used = None, None, None
     previous = None
 
-    def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend, used: FrozenSet[str]=_EMPTY_SET, known_incorrect: bool=False):
+    def __new__(cls, templates: Tuple[Tuple[int, ...]], legend: Legend, used: Tuple[Optional[str]]=None, known_incorrect: bool=False):
         assert isinstance(templates, tuple)
         assert isinstance(legend, Legend)
-        assert isinstance(used, frozenset)
+        assert used is None or isinstance(used, tuple), "used has wrong type: {}".format(used)
         # noinspection PyTypeChecker
         instance = super(FillState, cls).__new__(cls, [templates, legend, used, known_incorrect])
         instance.templates = templates
         instance.legend = legend
-        instance.used = used
+        instance.used = tuple([None] * len(templates)) if used is None else used
         instance.known_incorrect = known_incorrect
         return instance
 
@@ -103,34 +107,40 @@ class FillState(tuple):
         return True
 
     def render_filled(self) -> Iterator[str]:
-        for template in self.templates:
-            if self.is_template_filled(template):
-                yield self.legend.render(template)
+        return filter(_NOT_NONE, self.used)
 
     def unfilled(self) -> Iterator[int]:
         """Return a generator of indexes of templates that are not completely filled."""
-        for i, template in enumerate(self.templates):
-            if not self.is_template_filled(template):
+        for i, entry in enumerate(self.used):
+        #     if not self.is_template_filled(template):
+        #         yield i
+            if entry is None:
                 yield i
 
-    def _list_new_entries(self, new_legend: Legend, legend_updates: Dict[int, str]) -> List[str]:
-        more_entries = []
+    def _list_new_entries(self, new_legend: Legend, legend_updates: Dict[int, str]) -> Dict[int, str]:
+        """Return a map of template index to completed entry."""
+        more_entries = {}
         updated_templates = set()
-        for index in legend_updates:
-            for template in filter(lambda t: index in t, self.templates):
-                updated_templates.add(template)
-        for template in updated_templates:
+        for ti, template in enumerate(self.templates):
+            for index in legend_updates:
+                if index in template:
+                    updated_templates.add((ti, template))
+        for t_idx, template in updated_templates:
             if new_legend.is_all_defined(template):
                 another_entry = new_legend.render(template)
-                more_entries.append(another_entry)
+                more_entries[t_idx] = another_entry
         return more_entries
 
     def advance(self, legend_updates: Dict[int, str]) -> 'FillState':
         new_legend = self.legend.redefine(legend_updates)
         more_entries = self._list_new_entries(new_legend, legend_updates)
-        used = frozenset(list(self.used) + more_entries)
-        has_dupes = len(used) < (len(self.used) + len(more_entries))
-        state = FillState(self.templates, new_legend, used, has_dupes)
+        used: List[Optional[str]] = list(self.used)
+        for template_idx, new_entry in more_entries.items():
+            used[template_idx] = new_entry
+        used_not_none = list(filter(lambda x: x is not None, used))
+        has_dupes = _sort_and_check_duplicates(used_not_none)
+        # has_dupes = len(used) < (len(self.used) + len(more_entries))
+        state = FillState(self.templates, new_legend, tuple(used), has_dupes)
         state.previous = self
         return state
 
@@ -143,7 +153,7 @@ class FillState(tuple):
                 index = grid.get_index(square)
                 indexes.append(index)
             templates.append(tuple(indexes))
-        return FillState(tuple(templates), Legend.empty(), frozenset())
+        return FillState(tuple(templates), Legend.empty())
 
     # noinspection PyProtectedMember
     def render(self, grid: GridModel, newline="\n", none_val='_', dark=puzzicon.grid._DARK) -> str:
