@@ -15,7 +15,7 @@ def main():
     wordlist = list(_WORDS_5x5) + list(_NONWORDS_5x5)
     rng = random.Random(0xf177)
     rng.shuffle(wordlist)
-    bank = Bank(list(map(str.upper, _DICTIONARY_5x5)))
+    bank = Bank.with_registry(list(map(str.upper, _DICTIONARY_5x5)))
     state = FillState.from_grid(grid)
     listener = FirstCompleteListener()
     filler = Filler(bank)

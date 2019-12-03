@@ -60,7 +60,7 @@ def main():
     wordlist = list(_DICTIONARY_9x9)
     rng = random.Random(0xf177)
     rng.shuffle(wordlist)
-    bank = Bank(list(map(str.upper, _DICTIONARY_9x9)))
+    bank = Bank.with_registry(list(map(str.upper, _DICTIONARY_9x9)))
     state = FillState.from_grid(grid)
     listener = FirstCompleteListener(100 * 1000)
     filler = Filler(bank)

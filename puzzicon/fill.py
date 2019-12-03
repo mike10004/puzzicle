@@ -6,7 +6,7 @@ import puzzicon.grid
 from collections import defaultdict
 import itertools
 from puzzicon.grid import GridModel
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, FrozenSet, Collection, Set
+from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, NamedTuple, Collection, FrozenSet
 import logging
 
 
@@ -15,19 +15,12 @@ _VALUE = 1
 _BLANK = '_'
 
 
-class Legend(tuple):
+class Legend(Tuple[Optional[str]]):
 
-    def __new__(cls, values_list: Sequence[str]):
-        # noinspection PyTypeChecker
-        return super(Legend, cls).__new__(cls, values_list)
+    def has_value(self, index: int) -> bool:
+        return self.get(index) is not None
 
-    def has_value(self, index: int):
-        try:
-            return self[index] is not None
-        except IndexError:
-            return False
-
-    def get(self, index):
+    def get(self, index) -> Optional[str]:
         try:
             return self[index]
         except IndexError:
@@ -35,7 +28,7 @@ class Legend(tuple):
 
     # noinspection PyTypeChecker
     @staticmethod
-    def from_dict(values_dict: Dict[int, str]):
+    def from_dict(values_dict: Dict[int, str]) -> 'Legend':
         max_index = max(values_dict.keys())
         if max_index == 0:
             return Legend([values_dict[0]])
@@ -44,10 +37,10 @@ class Legend(tuple):
             values_list[k] = v
         return Legend(values_list)
 
-    def render(self, indexes: Sequence[int]):
+    def render(self, indexes: Sequence[int]) -> str:
         return ''.join(map(lambda val: _BLANK if val is None else val, map(lambda index: self.get(index), indexes)))
 
-    def render_after(self, indexes: Sequence[int], updates: Dict[int, str]):
+    def render_after(self, indexes: Sequence[int], updates: Dict[int, str]) -> str:
         def get_value(index: int):
             value = self.get(index)
             if value is None:
@@ -57,7 +50,7 @@ class Legend(tuple):
             return value
         return ''.join(map(get_value, indexes))
 
-    def redefine(self, definitions: Dict[int, str]):
+    def redefine(self, definitions: Dict[int, str]) -> 'Legend':
         assert definitions, "definitions set must be nonempty; otherwise just reuse existing legend"
         mutable = list(self)
         for i in range(len(mutable), max(definitions.keys()) + 1):
@@ -67,16 +60,16 @@ class Legend(tuple):
         return Legend(mutable)
 
     @staticmethod
-    def empty():
+    def empty() -> 'Legend':
         return Legend([])
 
-    def is_all_defined(self, indexes: Sequence[int]):
+    def is_all_defined(self, indexes: Sequence[int]) -> bool:
         for index in indexes:
             if not self.has_value(index):
                 return False
         return True
 
-    def is_all_defined_after(self, indexes: Sequence[int], legend_updates: Dict[int, str]):
+    def is_all_defined_after(self, indexes: Sequence[int], legend_updates: Dict[int, str]) -> bool:
         """Tests whether each index is defined in either this legend or a set of updates."""
         for index in indexes:
             if not self.has_value(index) and index not in legend_updates:
@@ -86,7 +79,7 @@ class Legend(tuple):
 _EMPTY_SET = frozenset()
 
 
-def _sort_and_check_duplicates(items: list):
+def _sort_and_check_duplicates(items: list) -> bool:
     items.sort()
     for i in range(1, len(items)):
         if items[i - 1] == items[i]:
@@ -94,7 +87,7 @@ def _sort_and_check_duplicates(items: list):
     return False
 
 
-def _NOT_NONE(x: Optional[str]):
+def _not_none(x: Optional[str]) -> bool:
     return x is not None
 
 
@@ -106,24 +99,17 @@ class Suggestion(object):
         assert new_entries, "suggestion must contain at least one new entry"
 
 
-class FillState(tuple):
+class Template(Tuple[int, ...]):
 
-    templates, legend, used = None, None, None
-    previous = None
+    def __new__(cls, indexes: Sequence[int]):
+        return tuple.__new__(Template, indexes)
 
-    def __new__(cls, templates: Tuple[Tuple[int, ...], ...], legend: Legend, used: Tuple[Optional[str], ...]=None, known_incorrect: bool=False):
-        assert isinstance(templates, tuple)
-        assert isinstance(legend, Legend)
-        if used is None:
-            used = tuple([None] * len(templates))
-        assert used is None or isinstance(used, tuple), "used has wrong type: {}".format(used)
-        # noinspection PyTypeChecker
-        instance = super(FillState, cls).__new__(cls, [templates, legend, used, known_incorrect])
-        instance.templates = templates
-        instance.legend = legend
-        instance.used = used
-        instance.known_incorrect = known_incorrect
-        return instance
+
+class FillState(NamedTuple):
+
+    templates: Tuple[Template, ...]
+    legend: Legend
+    used: Tuple[Optional[str], ...]
 
     def is_template_filled(self, template: Tuple[int, ...]):
         for index in template:
@@ -131,20 +117,20 @@ class FillState(tuple):
                 return False
         return True
 
+    @staticmethod
+    def from_templates(templates: Tuple[Template, ...]):
+        return FillState(templates, Legend.empty(), tuple([None] * len(templates)))
+
     def is_complete(self):
         # could make this a set first at the expense of memory, but it's only max twice as big
         return all(self.used)
 
     def render_filled(self) -> Iterator[str]:
-        return filter(_NOT_NONE, self.used)
+        return filter(_not_none, self.used)
 
     def unfilled(self) -> Iterator[int]:
         """Return a generator of indexes of templates that are not completely filled."""
-        for i, entry in enumerate(self.used):
-        #     if not self.is_template_filled(template):
-        #         yield i
-            if entry is None:
-                yield i
+        return map(lambda pair: pair[0], filter(lambda pair: pair[1] is None, enumerate(self.used)))
 
     def _list_new_entries(self, new_legend: Legend, legend_updates: Dict[int, str]) -> Dict[int, str]:
         """Return a map of template index to completed entry."""
@@ -165,33 +151,25 @@ class FillState(tuple):
         new_used: List[Optional[str]] = list(self.used)
         for template_idx, new_entry in suggestion.new_entries.items():
             new_used[template_idx] = new_entry
-        state = FillState(self.templates, new_legend, tuple(new_used), False)
-        state.previous = self
+        state = FillState(self.templates, new_legend, tuple(new_used))
         return state
 
     def advance(self, legend_updates: Dict[int, str]) -> 'FillState':
         new_legend = self.legend.redefine(legend_updates)
         more_entries = self._list_new_entries(new_legend, legend_updates)
-        used: List[Optional[str]] = list(self.used)
-        for template_idx, new_entry in more_entries.items():
-            used[template_idx] = new_entry
-        used_not_none = list(filter(lambda x: x is not None, used))
-        has_dupes = _sort_and_check_duplicates(used_not_none)
-        # has_dupes = len(used) < (len(self.used) + len(more_entries))
-        state = FillState(self.templates, new_legend, tuple(used), has_dupes)
-        state.previous = self
-        return state
+        suggestion = Suggestion(legend_updates, more_entries)
+        return self.advance_unchecked(suggestion)
 
     @staticmethod
     def from_grid(grid: GridModel) -> 'FillState':
-        templates = []
+        templates: List[Template] = []
         for entry in grid.entries():
             indexes = []
             for square in entry.squares:
                 index = grid.get_index(square)
                 indexes.append(index)
-            templates.append(tuple(indexes))
-        return FillState(tuple(templates), Legend.empty())
+            templates.append(Template(indexes))
+        return FillState.from_templates(tuple(templates))
 
     # noinspection PyProtectedMember
     def render(self, grid: GridModel, newline="\n", none_val='_', dark=puzzicon.grid._DARK) -> str:
@@ -216,8 +194,6 @@ class FillState(tuple):
             k, v = template[i], entry[i]
             if self.legend.get(k) != v:
                 legend_updates[k] = v
-        if not legend_updates:
-            _log.warning("no updates made to %s from entry '%s', template %d", self, entry, template_idx)
         return legend_updates
 
 
@@ -227,23 +203,21 @@ def _powerset(iterable):
     return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1))
 
 
-class Bank(tuple):
+class Bank(NamedTuple):
 
-    word_set = None
-    by_pattern = None
+    word_set: FrozenSet[str]
+    by_pattern: Dict[Tuple[Optional[str]], List[str]] = {}
 
-    def __new__(cls, entries: Sequence[str], pattern_registry_cap=9):
+    @staticmethod
+    def with_registry(entries: Sequence[str], pattern_registry_cap=9):
         word_set = frozenset(entries)
-        # noinspection PyTypeChecker
-        instance = super(Bank, cls).__new__(cls, [word_set])
-        instance.word_set = word_set
-        instance.by_pattern = defaultdict(list)
+        by_pattern = defaultdict(list)
         for entry in entries:
             if len(entry) <= pattern_registry_cap:
                 patterns = Bank.patterns(entry)
                 for pattern in patterns:
-                    instance.by_pattern[pattern].append(entry)
-        return instance
+                    by_pattern[pattern].append(entry)
+        return Bank(word_set, by_pattern)
 
     @staticmethod
     def patterns(entry: str) -> List[Tuple]:
@@ -398,7 +372,7 @@ class FirstCompleteListener(FillListener):
         self.completed = None
 
     def check_state(self, state: FillState, bank: Bank):
-        if not state.known_incorrect and state.is_complete():
+        if state.is_complete():
             self.completed = state
             return _STOP
         return _CONTINUE
@@ -417,9 +391,17 @@ class AllCompleteListener(FillListener):
         return self.completed
 
     def check_state(self, state: FillState, bank: Bank):
-        if not state.known_incorrect and state.is_complete():
+        if state.is_complete():
             self.completed.add(state)
         return _CONTINUE
+
+
+class FillStateNode(object):
+
+    def __init__(self, state: FillState, parent: 'FillStateNode'=None):
+        self.state = state
+        self.parent = parent
+        self.known_unfillable = False
 
 
 class Filler(object):
@@ -429,17 +411,18 @@ class Filler(object):
 
     def fill(self, state: FillState, listener: FillListener=None) -> FillListener:
         listener = listener or FirstCompleteListener()
-        self._fill(state, listener)
+        self._fill(FillStateNode(state), listener)
         return listener
 
-    def _fill(self, state: FillState, listener: Callable[[FillState, Bank], bool]) -> bool:
-        if listener(state, self.bank) == _STOP:
+    def _fill(self, node: FillStateNode, listener: Callable[[FillState, Bank], bool]) -> bool:
+        if listener(node.state, self.bank) == _STOP:
             return _STOP
         action_flag = _CONTINUE
-        for template_idx in state.unfilled():
-            for legend_updates in self.bank.suggest_updates(state, template_idx):
-                new_state = state.advance_unchecked(legend_updates)
-                continue_now =  self._fill(new_state, listener)
+        for template_idx in node.state.unfilled():
+            for legend_updates in self.bank.suggest_updates(node.state, template_idx):
+                new_state = node.state.advance_unchecked(legend_updates)
+                new_node = FillStateNode(new_state, node)
+                continue_now =  self._fill(new_node, listener)
                 if continue_now != _CONTINUE:
                     action_flag = _STOP
                     break
