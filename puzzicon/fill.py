@@ -302,6 +302,9 @@ class Bank(tuple):
                 return False
         return True
 
+    def __str__(self):
+        return "Bank<num_words={},num_patterns_registered={}>".format(len(self.word_set), len(self.by_pattern))
+
 
 _CONTINUE = False
 _STOP = True

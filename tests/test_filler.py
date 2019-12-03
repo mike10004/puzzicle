@@ -216,6 +216,32 @@ class BankTest(TestCase):
         actual = Bank.list_new_entries('CD', 1, state)
         self.assertDictEqual({2: 'AC', 3: 'BD'}, actual)
 
+    def test_suggest_1(self):
+        words = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
+        bank = create_bank(*words)
+        templates: Tuple[Tuple[int, ...], ...] = ((0,1),(2,3),(0,2),(1,3))
+        state = FillState(templates, Legend.empty(), None, False)
+        actual = set(bank.suggest(state, 0))
+        self.assertSetEqual(set(words), actual)
+
+    def test_suggest_3(self):
+        bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
+        used: Tuple[Optional[str], ...] = ('AB', None, None, None)
+        templates: Tuple[Tuple[int, ...], ...] = ((0,1),(2,3),(0,2),(1,3))
+        state = FillState(templates, Legend(['A', 'B', None, None]), used, False)
+        actual = set(bank.suggest(state, 2))
+        self.assertSetEqual({'AC', 'AX'}, actual)
+
+    def test_suggest_2(self):
+        words_2chars = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
+        words_3chars = ['TAB', 'QCD', 'YAC', 'CBD', 'JXY', 'TJJ', 'NOP']
+        all_words = words_2chars + words_3chars
+        bank = create_bank(*all_words)
+        templates: Tuple[Tuple[int, ...], ...] = ((0,1),(2,3),(0,2),(1,3))
+        state = FillState(templates, Legend.empty(), None, False)
+        actual = set(bank.suggest(state, 0))
+        self.assertSetEqual(set(words_2chars), actual)
+
     def test_filter(self):
         bank = create_bank('ABC', 'DEF', 'ABX', 'G', 'HI', 'ACC')
         actual = set(bank.filter(['A', 'B', None]))
@@ -263,7 +289,7 @@ class FillerTest(TestCase):
         filler = Filler(bank)
         state = FillState.from_grid(grid)
         filler.fill(state, listener)
-        _log.info("count = %d", listener.count)
+        print("count = {} for {} with {}".format(listener.count, grid, bank))
         return listener.value()
 
     def test_fill_2x2_first(self):
@@ -277,7 +303,6 @@ class FillerTest(TestCase):
         listener = FirstCompleteListener(100000)
         listener.notify = counter
         filled = self._do_fill_2x2(grid, listener)
-        _log.info("known incorrect: %s", counter.known_incorrect_count)
         self._check_2x2_filled(filled)
 
     def _check_2x2_filled(self, state: FillState):

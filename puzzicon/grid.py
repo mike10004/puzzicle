@@ -120,7 +120,6 @@ class GridModel(object):
                 dead = True
         return squares
 
-
     def entries(self):
         number = 1
         entries = []
@@ -137,6 +136,9 @@ class GridModel(object):
             if either:
                 number += 1
         return entries
+
+    def __str__(self):
+        return "GridModel<{}x{}>".format(self.num_rows, self.num_cols)
 
 
 _ACROSS = 'across'
