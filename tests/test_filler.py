@@ -199,6 +199,14 @@ class FillStateTest(TestCase):
         actual = state.to_legend_updates_dict('GX', 1)
         self.assertDictEqual({2: 'X'}, actual)
 
+    def test_list_new_entries(self):
+        # bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP')
+        used: Tuple[Optional[str], ...] = ('AB', None, None, None)
+        templates: Tuple[Template, ...] = (T(0,1), T(2,3), T(0,2), T(1,3))
+        state = FillState(templates, Legend(['A', 'B', None, None]), used)
+        actual = state.list_new_entries('CD', 1)
+        self.assertDictEqual({2: 'AC', 3: 'BD'}, actual)
+
 
 class BankTest(TestCase):
 
@@ -225,14 +233,6 @@ class BankTest(TestCase):
         for entry, pattern in bad:
             with self.subTest():
                 self.assertFalse(Bank.matches(entry, pattern))
-
-    def test_list_new_entries(self):
-        # bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP')
-        used: Tuple[Optional[str], ...] = ('AB', None, None, None)
-        templates: Tuple[Template, ...] = (T(0,1), T(2,3), T(0,2), T(1,3))
-        state = FillState(templates, Legend(['A', 'B', None, None]), used)
-        actual = Bank.list_new_entries('CD', 1, state)
-        self.assertDictEqual({2: 'AC', 3: 'BD'}, actual)
 
     def test_suggest_1(self):
         words = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']

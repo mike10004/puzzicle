@@ -196,6 +196,33 @@ class FillState(NamedTuple):
                 legend_updates[k] = v
         return legend_updates
 
+    def list_new_entries(self, entry: str, template_idx: int) -> Dict[int, str]:
+        """
+        Return a map of template index to completed entry for all filled
+        templates *except* the template corresponding to the given index.
+        """
+        legend_updates = self.to_legend_updates_dict(entry, template_idx)
+        return self.list_new_entries_using_updates(legend_updates, template_idx, False)
+
+    def list_new_entries_using_updates(self, legend_updates: Dict[int, str], template_idx: int, include_template_idx: bool) -> Dict[int, str]:
+        """
+        Return a map of template index to completed entry for all filled
+        templates. The template corresponding to the given index is included
+        in the set of updates only if include_template_idx is true.
+        """
+        updated_templates = set()
+        for t_idx, template in enumerate(self.templates):
+            if include_template_idx or (t_idx != template_idx):
+                for index in legend_updates:
+                    if index in template:
+                        updated_templates.add((t_idx, template))
+        more_entries = {}
+        for t_idx, template in updated_templates:
+            if self.legend.is_all_defined_after(template, legend_updates):
+                another_entry = self.legend.render_after(template, legend_updates)
+                more_entries[t_idx] = another_entry
+        return more_entries
+
 
 def _powerset(iterable):
     """powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"""
@@ -256,7 +283,7 @@ class Bank(NamedTuple):
         unused = filter(Bank.not_already_used_predicate(state.used), matches)
         def stays_correct(entry):
             # we could optimize by not generating this entire list before checking each one
-            new_entries = Bank.list_new_entries(entry, template_idx, state)
+            new_entries = state.list_new_entries(entry, template_idx)
             new_entries_set = set()
             for new_entry in new_entries.values():
                 # test if already in this new batch of entries, already in set of used words in state, or would be incorrect
@@ -274,7 +301,7 @@ class Bank(NamedTuple):
         updates_iter = map(lambda entry: state.to_legend_updates_dict(entry, template_idx), unused)
         def stays_correct(legend_updates: Dict[int, str], new_entries_dict: Dict[int, str]):
             # we could optimize by not generating this entire list before checking each one
-            new_entries = Bank.list_new_entries_using_updates(legend_updates, template_idx, state, True)
+            new_entries = state.list_new_entries_using_updates(legend_updates, template_idx, True)
             new_entries_set = set()
             for t_idx, new_entry in new_entries.items():
                 # test if already in this new batch of entries, already in set of used words in state, or would be incorrect
@@ -296,35 +323,6 @@ class Bank(NamedTuple):
 
     def is_valid_new_entry(self, state: FillState, entry: str):
         return entry not in state.used and self.has_word(entry)
-
-    @staticmethod
-    def list_new_entries(entry: str, template_idx: int, state: FillState) -> Dict[int, str]:
-        """
-        Return a map of template index to completed entry for all filled
-        templates *except* the template corresponding to the given index.
-        """
-        legend_updates = state.to_legend_updates_dict(entry, template_idx)
-        return Bank.list_new_entries_using_updates(legend_updates, template_idx, state, False)
-
-    @staticmethod
-    def list_new_entries_using_updates(legend_updates: Dict[int, str], template_idx: int, state: FillState, include_template_idx: bool) -> Dict[int, str]:
-        """
-        Return a map of template index to completed entry for all filled
-        templates. The template corresponding to the given index is included
-        in the set of updates only if include_template_idx is true.
-        """
-        updated_templates = set()
-        for t_idx, template in enumerate(state.templates):
-            if include_template_idx or (t_idx != template_idx):
-                for index in legend_updates:
-                    if index in template:
-                        updated_templates.add((t_idx, template))
-        more_entries = {}
-        for t_idx, template in updated_templates:
-            if state.legend.is_all_defined_after(template, legend_updates):
-                another_entry = state.legend.render_after(template, legend_updates)
-                more_entries[t_idx] = another_entry
-        return more_entries
 
     def has_word(self, entry: str):
         return entry in self.word_set
