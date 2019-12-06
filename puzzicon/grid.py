@@ -1,16 +1,20 @@
 #
 import math
-from typing import List
+from typing import List, Tuple, NamedTuple
 import itertools
 
 
+_ACROSS = 'across'
+_DOWN = 'down'
 _DARK = '.'
+
 
 class Square(object):
 
-    def __init__(self, row: int, col: int, value: str=None):
+    def __init__(self, row: int, col: int, index: int, value: str=None):
         self.row = row
         self.col = col
+        self.index = index
         self.value = value
 
     def dark(self) -> bool:
@@ -22,6 +26,33 @@ class Square(object):
     def __str__(self):
         return "({}, {}, {})".format(self.row, self.col, repr(self.value))
 
+
+class Location(NamedTuple):
+
+    direction: str
+    number: int
+    row_index: int
+    col_index: int
+
+    @staticmethod
+    def across(number, row_index, col_index):
+        return Location(_ACROSS, number, row_index, col_index)
+
+    @staticmethod
+    def down(number, row_index, col_index):
+        return Location(_DOWN, number, row_index, col_index)
+
+
+class Entry(object):
+
+    def __init__(self, location: Location, squares: List[Square]):
+        self.location = location
+        self.squares = squares
+
+    def __str__(self) -> str:
+        return "Entry<at={};{}>".format(self.location, self.squares)
+
+
 class GridModel(object):
 
     def __init__(self, rows: List[List[Square]]):
@@ -30,7 +61,7 @@ class GridModel(object):
         self.num_cols = len(rows[0]) if len(rows) > 0 else 0
 
     @staticmethod
-    def determine_dims(grid_chars: str):
+    def determine_dims(grid_chars: str) -> Tuple[int, int]:
         num_squares = len(list(filter(lambda ch: ch not in "\r\n\t", grid_chars)))
         dim = math.sqrt(num_squares)
         assert round(dim) == dim
@@ -39,7 +70,7 @@ class GridModel(object):
     def get_index(self, square: Square) -> int:
         return square.row * self.num_cols + square.col
 
-    def to_text(self, newline=""):
+    def to_text(self, newline="") -> str:
         cells = []
         for row in self.rows:
             for cell in row:
@@ -52,7 +83,7 @@ class GridModel(object):
     def value(self, row: int, col: int) -> str:
         return self.square(row, col).value
 
-    def is_across(self, r, c):
+    def is_across(self, r, c) -> bool:
         my_val = self.value(r, c)
         if my_val == '.':
             return False
@@ -65,7 +96,7 @@ class GridModel(object):
             right_val = '.'
         return left_val == '.' and right_val != '.'
 
-    def is_down(self, r, c):
+    def is_down(self, r, c) -> bool:
         my_val = self.value(r, c)
         if my_val == '.':
             return False
@@ -94,7 +125,8 @@ class GridModel(object):
             grow = []
             for c in range(len(row)):
                 value = rows[r][c]
-                cell = Square(r, c, value)
+                index = r * ncols + c
+                cell = Square(r, c, index, value)
                 grow.append(cell)
             grows.append(grow)
         return GridModel(grows)
@@ -120,7 +152,7 @@ class GridModel(object):
                 dead = True
         return squares
 
-    def entries(self):
+    def entries(self) -> List[Entry]:
         number = 1
         entries = []
         for r, c in itertools.product(range(self.num_rows), range(self.num_cols)):
@@ -139,37 +171,4 @@ class GridModel(object):
 
     def __str__(self):
         return "GridModel<{}x{}>".format(self.num_rows, self.num_cols)
-
-
-_ACROSS = 'across'
-_DOWN = 'down'
-
-class Location(tuple):
-
-    def __new__(cls, direction, number, row_index, col_index):
-        # noinspection PyTypeChecker
-        instance = super(Location, cls).__new__(cls, [direction, number, row_index, col_index])
-        instance.direction = direction
-        instance.number = number
-        instance.row_index = row_index
-        instance.col_index = col_index
-        return instance
-
-    @staticmethod
-    def across(number, row_index, col_index):
-        return Location(_ACROSS, number, row_index, col_index)
-
-    @staticmethod
-    def down(number, row_index, col_index):
-        return Location(_DOWN, number, row_index, col_index)
-
-
-class Entry(object):
-
-    def __init__(self, location: Location, squares: List[Square]):
-        self.location = location
-        self.squares = squares
-
-    def __str__(self):
-        return "Entry<at={};{}>".format(self.location, self.squares)
 

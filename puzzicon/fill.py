@@ -6,77 +6,52 @@ import puzzicon.grid
 from collections import defaultdict
 import itertools
 from puzzicon.grid import GridModel
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, NamedTuple, Collection, FrozenSet
+from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable
+from typing import NamedTuple, Collection, FrozenSet, Union, Iterable
 import logging
 
 
 _log = logging.getLogger(__name__)
 _VALUE = 1
 _BLANK = '_'
-
-
-class Legend(Tuple[Optional[str]]):
-
-    def has_value(self, index: int) -> bool:
-        return self.get(index) is not None
-
-    def get(self, index) -> Optional[str]:
-        try:
-            return self[index]
-        except IndexError:
-            return None
-
-    # noinspection PyTypeChecker
-    @staticmethod
-    def from_dict(values_dict: Dict[int, str]) -> 'Legend':
-        max_index = max(values_dict.keys())
-        if max_index == 0:
-            return Legend([values_dict[0]])
-        values_list = [None] * (max_index + 1)
-        for k, v in values_dict.items():
-            values_list[k] = v
-        return Legend(values_list)
-
-    def render(self, indexes: Sequence[int]) -> str:
-        return ''.join(map(lambda val: _BLANK if val is None else val, map(lambda index: self.get(index), indexes)))
-
-    def render_after(self, indexes: Sequence[int], updates: Dict[int, str]) -> str:
-        def get_value(index: int):
-            value = self.get(index)
-            if value is None:
-                value = updates.get(index, None)
-            if value is None:
-                value = _BLANK
-            return value
-        return ''.join(map(get_value, indexes))
-
-    def redefine(self, definitions: Dict[int, str]) -> 'Legend':
-        assert definitions, "definitions set must be nonempty; otherwise just reuse existing legend"
-        mutable = list(self)
-        for i in range(len(mutable), max(definitions.keys()) + 1):
-            mutable.append(None)
-        for k, v in definitions.items():
-            mutable[k] = v
-        return Legend(mutable)
-
-    @staticmethod
-    def empty() -> 'Legend':
-        return Legend([])
-
-    def is_all_defined(self, indexes: Sequence[int]) -> bool:
-        for index in indexes:
-            if not self.has_value(index):
-                return False
-        return True
-
-    def is_all_defined_after(self, indexes: Sequence[int], legend_updates: Dict[int, str]) -> bool:
-        """Tests whether each index is defined in either this legend or a set of updates."""
-        for index in indexes:
-            if not self.has_value(index) and index not in legend_updates:
-                return False
-        return True
-
 _EMPTY_SET = frozenset()
+
+
+class Word(NamedTuple):
+
+    pass
+
+
+class Answer(NamedTuple):
+
+    content: Tuple[Union[int, str], ...]
+    pattern: Tuple[Optional[str], ...]
+    strength: int
+
+    @staticmethod
+    def define(content: Sequence[Union[int, str]]) -> 'Answer':
+        assert isinstance(content, tuple)
+        pattern = tuple([(None if isinstance(x, int) else x) for x in content])
+        strength = len(pattern) - sum([0 if p is None else p for p in pattern])
+        # noinspection PyTypeChecker
+        return Answer(content, pattern, strength)
+
+    def render(self, blank=_BLANK) -> str:
+        return ''.join([blank if p is None else p for p in self.pattern])
+
+    def is_defined(self, index: int):
+        """Checks whether the grid index at the given content index is already mapped to a letter."""
+        return self.pattern[index] is not None
+
+    def is_all_defined(self) -> bool:
+        raise NotImplementedError()
+
+    def is_all_defined_after(self, legend_updates: Dict[int, str]) -> bool:
+        raise NotImplementedError()
+
+    def render_after(self, legend_updates: Dict[int, str]) -> Tuple[Optional[str], ...]:
+        raise NotImplementedError()
+
 
 
 def _sort_and_check_duplicates(items: list) -> bool:
@@ -87,92 +62,67 @@ def _sort_and_check_duplicates(items: list) -> bool:
     return False
 
 
-def _not_none(x: Optional[str]) -> bool:
-    return x is not None
-
-
 class Suggestion(object):
 
     def __init__(self, legend_updates: Dict[int, str], new_entries: Dict[int, str]):
+        """
+        Construct an instance.
+        @param legend_updates: mapping of grid index to square value
+        @param new_entries: mapping of answer index to bank words
+        """
         self.legend_updates = legend_updates
         self.new_entries = new_entries
         assert new_entries, "suggestion must contain at least one new entry"
 
 
-class Template(Tuple[int, ...]):
-
-    def __new__(cls, indexes: Sequence[int]):
-        return tuple.__new__(Template, indexes)
-
-
 class FillState(NamedTuple):
 
-    templates: Tuple[Template, ...]
-    legend: Legend
-    used: Tuple[Optional[str], ...]
+    answers: Tuple[Answer, ...]
+    crosses: Tuple[Tuple[int, ...]]     # maps each grid index to all indexes of answers that contain the grid index
+    used: Tuple[Optional[str], ...]     # maps each answer index to rendering of that answer, if complete, or else None
+    num_incomplete: int                 # number of incomplete answers remaining
 
-    def is_template_filled(self, template: Tuple[int, ...]):
-        for index in template:
-            if not self.legend.has_value(index):
-                return False
-        return True
+    # deprecated: use from_answers instead
+    @staticmethod
+    def from_templates(templates: Tuple[Answer, ...]) -> 'FillState':
+        return FillState.from_answers(templates)
 
     @staticmethod
-    def from_templates(templates: Tuple[Template, ...]):
-        return FillState(templates, Legend.empty(), tuple([None] * len(templates)))
+    def from_answers(templates: Tuple[Answer, ...]) -> 'FillState':
+        raise NotImplementedError()
 
     def is_complete(self):
-        # could make this a set first at the expense of memory, but it's only max twice as big
-        return all(self.used)
-
-    def render_filled(self) -> Iterator[str]:
-        return filter(_not_none, self.used)
+        return self.num_incomplete == 0
 
     def unfilled(self) -> Iterator[int]:
-        """Return a generator of indexes of templates that are not completely filled."""
+        """Return a generator of indexes of answers that are not completely filled."""
         return map(lambda pair: pair[0], filter(lambda pair: pair[1] is None, enumerate(self.used)))
 
-    def _list_new_entries(self, new_legend: Legend, legend_updates: Dict[int, str]) -> Dict[int, str]:
-        """Return a map of template index to completed entry."""
-        more_entries = {}
-        updated_templates = set()
-        for ti, template in enumerate(self.templates):
-            for index in legend_updates:
-                if index in template:
-                    updated_templates.add((ti, template))
-        for t_idx, template in updated_templates:
-            if new_legend.is_all_defined(template):
-                another_entry = new_legend.render(template)
-                more_entries[t_idx] = another_entry
-        return more_entries
-
     def advance_unchecked(self, suggestion: Suggestion) -> 'FillState':
-        new_legend = self.legend.redefine(suggestion.legend_updates)
-        new_used: List[Optional[str]] = list(self.used)
-        for template_idx, new_entry in suggestion.new_entries.items():
-            new_used[template_idx] = new_entry
-        state = FillState(self.templates, new_legend, tuple(new_used))
-        return state
-
-    def advance(self, legend_updates: Dict[int, str]) -> 'FillState':
-        new_legend = self.legend.redefine(legend_updates)
-        more_entries = self._list_new_entries(new_legend, legend_updates)
-        suggestion = Suggestion(legend_updates, more_entries)
-        return self.advance_unchecked(suggestion)
+        raise NotImplementedError()
 
     @staticmethod
     def from_grid(grid: GridModel) -> 'FillState':
-        templates: List[Template] = []
+        answers: List[Answer] = []
         for entry in grid.entries():
             indexes = []
             for square in entry.squares:
                 index = grid.get_index(square)
                 indexes.append(index)
-            templates.append(Template(indexes))
-        return FillState.from_templates(tuple(templates))
+            answers.append(Answer.define(indexes))
+        return FillState.from_answers(tuple(answers))
 
     # noinspection PyProtectedMember
     def render(self, grid: GridModel, newline="\n", none_val='_', dark=puzzicon.grid._DARK) -> str:
+        legend = {}
+        entries = grid.entries()
+        assert len(entries) == len(self.answers)
+        for i in range(len(self.answers)):
+            entry, pattern = entries[i], self.answers[i].pattern
+            assert len(entry.squares) == len(pattern)
+            for j in range(len(pattern)):
+                if pattern[j] is not None:
+                    legend[entry.squares[j].index] = pattern[j]
         rows = []
         for r in range(grid.num_rows):
             row = []
@@ -182,51 +132,48 @@ class FillState(NamedTuple):
                     row.append(dark)
                 else:
                     i = grid.get_index(s)
-                    v = self.legend.get(i)
-                    row.append(none_val if v is None else v)
+                    v = legend.get(i, none_val)
+                    row.append(v)
             rows.append(''.join(row))
         return newline.join(rows)
 
     def to_legend_updates_dict(self, entry: str, template_idx: int) -> Dict[int, str]:
-        template = self.templates[template_idx]
+        """
+        Shows what new grid index to letter mappings would be defined if a template were to be filled by the given entry.
+        """
+        answer: Answer = self.answers[template_idx]
         legend_updates: Dict[int, str] = {}
         for i in range(len(entry)):
-            k, v = template[i], entry[i]
-            if self.legend.get(k) != v:
+            if answer.is_defined(i):
+                k, v = answer.content[i], entry[i]
                 legend_updates[k] = v
         return legend_updates
 
-    def list_new_entries(self, entry: str, template_idx: int) -> Dict[int, str]:
+    def list_new_entries_using_updates(self, legend_updates: Dict[int, str], template_idx: int,
+                                       include_template_idx: bool, evaluator: Optional[Callable]=None) -> Optional[Dict[int, Tuple[str, ...]]]:
         """
-        Return a map of template index to completed entry for all filled
-        templates *except* the template corresponding to the given index.
-        """
-        legend_updates = self.to_legend_updates_dict(entry, template_idx)
-        return self.list_new_entries_using_updates(legend_updates, template_idx, False)
+        Return a dictionary mapping answer indexes to word-tuples that includes only
+        those mappings where the word-tuple becomes completed by the given legend updates.
 
-    def list_new_entries_using_updates(self, legend_updates: Dict[int, str], template_idx: int, include_template_idx: bool, evaluator: Optional[Callable]=None) -> Optional[Dict[int, str]]:
-        """
-        Return a map of template index to completed entry for all filled
-        templates. The template corresponding to the given index is included
+        The answer corresponding to the given answer index is included
         in the set of updates only if include_template_idx is true.
 
-        If an evaluator is provided, it must accept a word as an argument and return False if the word is not valid.
-        This aborts the process of listing new entries and returns early with None.
+        If an evaluator is provided, it must accept a word-tuple as an argument and
+        return False if the word is not valid. This aborts the process of listing
+        new entries and returns early with None.
         """
-        updated_templates = set()
-        for t_idx, template in enumerate(self.templates):
-            if include_template_idx or (t_idx != template_idx):
-                for index in legend_updates:
-                    if index in template:
-                        updated_templates.add((t_idx, template))
-        more_entries = {}
-        for t_idx, template in updated_templates:
-            if self.legend.is_all_defined_after(template, legend_updates):
-                another_entry = self.legend.render_after(template, legend_updates)
-                if evaluator is not None and (not evaluator(another_entry)):
-                    return None
-                more_entries[t_idx] = another_entry
-        return more_entries
+        updated_answers = {}
+        for grid_index in legend_updates:
+            crossing_answer_indexes = self.crosses[grid_index]
+            for a_idx in crossing_answer_indexes:
+                if include_template_idx or (a_idx != template_idx):
+                    answer: Answer = self.answers[a_idx]
+                    if answer.is_all_defined_after(legend_updates):
+                        another_entry = answer.render_after(legend_updates)
+                        if evaluator is not None and (not evaluator(another_entry)):
+                            return None
+                        updated_answers[a_idx] = another_entry
+        return updated_answers
 
 
 def _powerset(iterable):
@@ -281,40 +228,23 @@ class Bank(NamedTuple):
             return filter(lambda entry: Bank.matches(entry, pattern), self)
         return pattern_matches.__iter__()
 
-    def suggest(self, state: FillState, template_idx: int) -> Iterator[str]:
-        indexes = state.templates[template_idx]
-        pattern = [state.legend.get(index) for index in indexes]
-        matches = self.filter(pattern)
-        unused = filter(Bank.not_already_used_predicate(state.used), matches)
-        def stays_correct(entry):
-            # we could optimize by not generating this entire list before checking each one
-            new_entries = state.list_new_entries(entry, template_idx)
-            new_entries_set = set()
-            for new_entry in new_entries.values():
-                # test if already in this new batch of entries, already in set of used words in state, or would be incorrect
-                if (new_entry in new_entries_set) or not self.is_valid_new_entry(state, new_entry):
-                    return False
-                new_entries_set.add(new_entry)
-            return True
-        return filter(stays_correct, unused)
-
     def suggest_updates(self, state: FillState, template_idx: int) -> Iterator[Suggestion]:
-        indexes = state.templates[template_idx]
-        pattern = [state.legend.get(index) for index in indexes]
+        answer: Answer = state.answers[template_idx]
+        pattern = answer.pattern
         matches = self.filter(pattern)
         unused = filter(Bank.not_already_used_predicate(state.used), matches)
         updates_iter = map(lambda entry: state.to_legend_updates_dict(entry, template_idx), unused)
         for legend_updates_ in updates_iter:
             evaluator = lambda entry: self.is_valid_new_entry(state, entry)
-            new_entries = state.list_new_entries_using_updates(legend_updates_, template_idx, True, evaluator)
-            if new_entries is not None:
-                new_entries_set = set()
-                for t_idx, new_entry in new_entries.items():
-                    # test if already in this new batch of entries, already in set of used words in state, or would be incorrect
-                    if (new_entry in new_entries_set) or not self.is_valid_new_entry(state, new_entry):
+            new_answers: Dict[int, Tuple[str, ...]] = state.list_new_entries_using_updates(legend_updates_, template_idx, True, evaluator)
+            if new_answers is not None:
+                new_entries_set: Dict[int, Tuple[str,...]] = dict()
+                for a_idx, new_entry in new_answers.items():
+                    # test if new batch of entries contains duplicates
+                    if new_entry in new_entries_set:
                         return False
-                    new_entries_set.add(new_entry)
-                yield Suggestion(legend_updates_, new_entries)
+                    new_entries_set[a_idx] = new_entry
+                yield Suggestion(legend_updates_, new_entries_set)
 
     @staticmethod
     def not_already_used_predicate(already_used: Collection[str]) -> Callable[[str], bool]:
