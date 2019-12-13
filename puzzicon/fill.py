@@ -6,7 +6,7 @@ import puzzicon.grid
 from collections import defaultdict
 import itertools
 from puzzicon.grid import GridModel
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable
+from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, Any
 from typing import NamedTuple, Collection, FrozenSet, Union, Iterable
 import logging
 
@@ -138,12 +138,16 @@ class FillState(NamedTuple):
 
     @staticmethod
     def from_answers(answers: Tuple[Answer, ...], grid_size: Tuple[int, int]) -> 'FillState':
-        crosses: List[List[int]] = [[]] * (grid_size[0] * grid_size[1])
+        crosses_dict = defaultdict(list)
         for a_idx, answer in enumerate(answers):
-            for spot in answer.content:
-                if isinstance(spot, int):
-                    crosses[spot].append(a_idx)
-        crosses: List[Tuple[int, ...]] = [tuple(c) for c in crosses]
+            for spot in filter(lambda s: isinstance(s, int), answer.content):
+                crosses_dict[spot].append(a_idx)
+        crosses = [None] * (grid_size[0] * grid_size[1])
+        for grid_idx in crosses_dict:
+            crosses[grid_idx] = tuple(crosses_dict[grid_idx])
+        for i in range(len(crosses)):
+            if crosses[i] is None:
+                crosses[i] = tuple()
         used = [None if not a.is_all_defined() else ''.join(a.pattern) for a in answers]
         num_incomplete = sum([1 if u is None else 0 for u in used])
         return FillState(tuple(answers), tuple(crosses), tuple(used), num_incomplete)
@@ -159,14 +163,15 @@ class FillState(NamedTuple):
         answers = list(self.answers)
         used = list(self.used)  # some elements may go from None -> str
         num_incomplete = self.num_incomplete  # decreases by number of new strings in 'used'
-        for grid_idx in suggestion.legend_updates:
-            answer_idxs = self.crosses[grid_idx]
-            for a_idx in answer_idxs:
-                answer = answers[a_idx]
-                if not answer.is_all_defined() and answer.is_all_defined_after(suggestion.legend_updates):
-                    rendering = ''.join(answer.render_after(suggestion.legend_updates))
-                    used[a_idx] = rendering
-                    num_incomplete -= 1
+        for a_idx in suggestion.new_entries:
+            answer = self.answers[a_idx]
+            # is this always true based on how we get the Suggestion in the first place?
+            if not answer.is_all_defined() and answer.is_all_defined_after(suggestion.legend_updates):
+                wtuple: WordTuple = answer.render_after(suggestion.legend_updates)
+                answers[a_idx] = Answer.define(wtuple)
+                rendering = ''.join(wtuple)
+                used[a_idx] = rendering
+                num_incomplete -= 1
         if num_incomplete == self.num_incomplete:
             # avoid re-tupling used list if nothing changed
             return FillState(tuple(answers), self.crosses, self.used, num_incomplete)
@@ -421,8 +426,9 @@ class FillStateNode(object):
 
 class Filler(object):
 
-    def __init__(self, bank: Bank):
+    def __init__(self, bank: Bank, tracer: Optional[Callable[[FillStateNode], Any]]=None):
         self.bank = bank
+        self.tracer = tracer
 
     def fill(self, state: FillState, listener: FillListener=None) -> FillListener:
         listener = listener or FirstCompleteListener()
@@ -430,6 +436,8 @@ class Filler(object):
         return listener
 
     def _fill(self, node: FillStateNode, listener: Callable[[FillState, Bank], bool]) -> bool:
+        if self.tracer is not None:
+            self.tracer(node)
         if listener(node.state, self.bank) == _STOP:
             return _STOP
         action_flag = _CONTINUE

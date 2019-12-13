@@ -4,7 +4,7 @@ import logging
 import os
 import os.path
 import errno
-from typing import List, Dict, DefaultDict
+from typing import List, Dict, DefaultDict, Iterator
 import puzzicon
 import puzzicon.fill
 
@@ -111,4 +111,12 @@ def create_bank(*args):
 def create_bank_from_wordlist_file(pathname: str='/usr/share/dict/words'):
     puzzemes = puzzicon.read_puzzeme_set(pathname)
     return puzzicon.fill.Bank.with_registry([p.canonical for p in puzzemes])
+
+
+class Render(object):
+
+    @staticmethod
+    def filled(state: puzzicon.fill.FillState) -> Iterator[str]:
+        return filter(lambda x: x is not None, state.used)
+
 
