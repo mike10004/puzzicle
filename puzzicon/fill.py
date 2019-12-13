@@ -17,40 +17,89 @@ _BLANK = '_'
 _EMPTY_SET = frozenset()
 
 
-class Word(NamedTuple):
+class WordTuple(Tuple[str, ...]):
 
+    def length(self):
+        return len(self)
+
+class Pattern(Tuple[Optional[str], ...]):
+
+    def length(self):
+        return len(self)
+
+
+class BankItem(NamedTuple):
+
+    tableau: WordTuple
+    rendering: str
+    constituents: FrozenSet[str]
+
+    @staticmethod
+    def create(tableau: WordTuple, constituents: Optional[Collection[str]]=None):
+        rendering = ''.join(tableau)
+        if constituents is None:
+            constituents = frozenset({rendering})
+        constituents = frozenset(constituents)
+        return BankItem(tableau, rendering, constituents)
+
+    @staticmethod
+    def from_word(word: str, constituents: Optional[str]=None):
+        return BankItem.create(WordTuple(word), constituents)
+
+    def length(self):
+        return len(self.tableau)
+
+    def __str__(self):
+        return f"BankItem<{self.tableau}>"
+
+
+class Template(Tuple[Union[int, str], ...]):
     pass
-
 
 class Answer(NamedTuple):
 
-    content: Tuple[Union[int, str], ...]
-    pattern: Tuple[Optional[str], ...]
+    content: Template
+    pattern: Pattern
     strength: int
 
     @staticmethod
     def define(content: Sequence[Union[int, str]]) -> 'Answer':
-        assert isinstance(content, tuple)
-        pattern = tuple([(None if isinstance(x, int) else x) for x in content])
-        strength = len(pattern) - sum([0 if p is None else p for p in pattern])
+        content = Template(content)
+        pattern = Pattern([(None if isinstance(x, int) else x) for x in content])
+        strength = sum([0 if p is None else 1 for p in pattern])
         # noinspection PyTypeChecker
         return Answer(content, pattern, strength)
 
     def render(self, blank=_BLANK) -> str:
         return ''.join([blank if p is None else p for p in self.pattern])
 
-    def is_defined(self, index: int):
+    def is_defined(self, index: int) -> bool:
         """Checks whether the grid index at the given content index is already mapped to a letter."""
         return self.pattern[index] is not None
 
+    def length(self) -> int:
+        return self.pattern.length()
+
     def is_all_defined(self) -> bool:
-        raise NotImplementedError()
+        return self.strength == self.length()
 
     def is_all_defined_after(self, legend_updates: Dict[int, str]) -> bool:
-        raise NotImplementedError()
+        for spot in self.content:
+            if isinstance(spot, int) and not spot in legend_updates:
+                return False
+        return True
 
-    def render_after(self, legend_updates: Dict[int, str]) -> Tuple[Optional[str], ...]:
-        raise NotImplementedError()
+    def render_after(self, legend_updates: Dict[int, str]) -> Union[Pattern, WordTuple]:
+        num_unknown = 0
+        letters = []
+        for spot in self.content:
+            if isinstance(spot, int):
+                val = legend_updates.get(spot, None)
+                letters.append(val)
+                num_unknown += (0 if val is None else 1)
+            else:
+                letters.append(spot)
+        return WordTuple(letters) if num_unknown == 0 else Pattern(letters)
 
 
 
@@ -64,7 +113,7 @@ def _sort_and_check_duplicates(items: list) -> bool:
 
 class Suggestion(object):
 
-    def __init__(self, legend_updates: Dict[int, str], new_entries: Dict[int, str]):
+    def __init__(self, legend_updates: Dict[int, str], new_entries: Dict[int, WordTuple]):
         """
         Construct an instance.
         @param legend_updates: mapping of grid index to square value
@@ -84,12 +133,20 @@ class FillState(NamedTuple):
 
     # deprecated: use from_answers instead
     @staticmethod
-    def from_templates(templates: Tuple[Answer, ...]) -> 'FillState':
-        return FillState.from_answers(templates)
+    def from_templates(templates: Tuple[Answer, ...], grid_size: Tuple[int, int]) -> 'FillState':
+        return FillState.from_answers(templates, grid_size)
 
     @staticmethod
-    def from_answers(templates: Tuple[Answer, ...]) -> 'FillState':
-        raise NotImplementedError()
+    def from_answers(answers: Tuple[Answer, ...], grid_size: Tuple[int, int]) -> 'FillState':
+        crosses: List[List[int]] = [[]] * (grid_size[0] * grid_size[1])
+        for a_idx, answer in enumerate(answers):
+            for spot in answer.content:
+                if isinstance(spot, int):
+                    crosses[spot].append(a_idx)
+        crosses: List[Tuple[int, ...]] = [tuple(c) for c in crosses]
+        used = [None if not a.is_all_defined() else ''.join(a.pattern) for a in answers]
+        num_incomplete = sum([1 if u is None else 0 for u in used])
+        return FillState(tuple(answers), tuple(crosses), tuple(used), num_incomplete)
 
     def is_complete(self):
         return self.num_incomplete == 0
@@ -99,7 +156,22 @@ class FillState(NamedTuple):
         return map(lambda pair: pair[0], filter(lambda pair: pair[1] is None, enumerate(self.used)))
 
     def advance_unchecked(self, suggestion: Suggestion) -> 'FillState':
-        raise NotImplementedError()
+        answers = list(self.answers)
+        used = list(self.used)  # some elements may go from None -> str
+        num_incomplete = self.num_incomplete  # decreases by number of new strings in 'used'
+        for grid_idx in suggestion.legend_updates:
+            answer_idxs = self.crosses[grid_idx]
+            for a_idx in answer_idxs:
+                answer = answers[a_idx]
+                if not answer.is_all_defined() and answer.is_all_defined_after(suggestion.legend_updates):
+                    rendering = ''.join(answer.render_after(suggestion.legend_updates))
+                    used[a_idx] = rendering
+                    num_incomplete -= 1
+        if num_incomplete == self.num_incomplete:
+            # avoid re-tupling used list if nothing changed
+            return FillState(tuple(answers), self.crosses, self.used, num_incomplete)
+        else:
+            return FillState(tuple(answers), self.crosses, tuple(used), num_incomplete)
 
     @staticmethod
     def from_grid(grid: GridModel) -> 'FillState':
@@ -110,7 +182,7 @@ class FillState(NamedTuple):
                 index = grid.get_index(square)
                 indexes.append(index)
             answers.append(Answer.define(indexes))
-        return FillState.from_answers(tuple(answers))
+        return FillState.from_answers(tuple(answers), grid.dims())
 
     # noinspection PyProtectedMember
     def render(self, grid: GridModel, newline="\n", none_val='_', dark=puzzicon.grid._DARK) -> str:
@@ -137,20 +209,23 @@ class FillState(NamedTuple):
             rows.append(''.join(row))
         return newline.join(rows)
 
-    def to_legend_updates_dict(self, entry: str, template_idx: int) -> Dict[int, str]:
+    def to_legend_updates_dict(self, entry: BankItem, answer_idx: int) -> Dict[int, str]:
         """
         Shows what new grid index to letter mappings would be defined if a template were to be filled by the given entry.
         """
-        answer: Answer = self.answers[template_idx]
+        answer: Answer = self.answers[answer_idx]
+        assert answer.length() == entry.length(), f"entry '{entry}' does not fit in answer {answer.pattern}"
         legend_updates: Dict[int, str] = {}
-        for i in range(len(entry)):
-            if answer.is_defined(i):
-                k, v = answer.content[i], entry[i]
+        for i in range(entry.length()):
+            if not answer.is_defined(i):
+                k, v = answer.content[i], entry.tableau[i]
                 legend_updates[k] = v
         return legend_updates
 
-    def list_new_entries_using_updates(self, legend_updates: Dict[int, str], template_idx: int,
-                                       include_template_idx: bool, evaluator: Optional[Callable]=None) -> Optional[Dict[int, Tuple[str, ...]]]:
+    def list_new_entries_using_updates(self, legend_updates: Dict[int, str],
+                                       template_idx: int,
+                                       include_template_idx: bool,
+                                       evaluator: Optional[Callable[[WordTuple], bool]]=None) -> Optional[Dict[int, WordTuple]]:
         """
         Return a dictionary mapping answer indexes to word-tuples that includes only
         those mappings where the word-tuple becomes completed by the given legend updates.
@@ -162,7 +237,8 @@ class FillState(NamedTuple):
         return False if the word is not valid. This aborts the process of listing
         new entries and returns early with None.
         """
-        updated_answers = {}
+        # noinspection PyTypeChecker
+        updated_answers: Dict[int, WordTuple] = {}
         for grid_index in legend_updates:
             crossing_answer_indexes = self.crosses[grid_index]
             for a_idx in crossing_answer_indexes:
@@ -172,6 +248,9 @@ class FillState(NamedTuple):
                         another_entry = answer.render_after(legend_updates)
                         if evaluator is not None and (not evaluator(another_entry)):
                             return None
+                        # because render_after returns an effective WordTuple when is_all_defined_after returns True,
+                        # we can ignore this type mismatch
+                        # noinspection PyTypeChecker
                         updated_answers[a_idx] = another_entry
         return updated_answers
 
@@ -182,84 +261,91 @@ def _powerset(iterable):
     return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1))
 
 
+def _patterns(entry: WordTuple) -> List[Pattern]:
+    entry_len = len(entry)
+    positions = [i for i in range(entry_len)]
+    patterns = []
+    for subset in _powerset(positions):
+        pattern = Pattern([(entry[i] if i in subset else None) for i in range(entry_len)])
+        patterns.append(pattern)
+    return patterns
+
+
 class Bank(NamedTuple):
 
-    word_set: FrozenSet[str]
-    by_pattern: Dict[Tuple[Optional[str]], List[str]] = {}
+    deposits: FrozenSet[BankItem]
+    tableaus: FrozenSet[WordTuple]
+    by_pattern: Dict[Pattern, List[BankItem]] = {}
 
     @staticmethod
     def with_registry(entries: Sequence[str], pattern_registry_cap=9):
-        word_set = frozenset(entries)
+        deposits = frozenset([BankItem.from_word(entry) for entry in entries])
+        tableaus = frozenset([item.tableau for item in deposits])
         by_pattern = defaultdict(list)
-        for entry in entries:
-            if len(entry) <= pattern_registry_cap:
-                patterns = Bank.patterns(entry)
+        for entry in deposits:
+            if entry.length() <= pattern_registry_cap:
+                patterns = _patterns(entry.tableau)
                 for pattern in patterns:
                     by_pattern[pattern].append(entry)
-        return Bank(word_set, by_pattern)
+        return Bank(deposits, tableaus, by_pattern)
 
     @staticmethod
-    def patterns(entry: str) -> List[Tuple]:
-        positions = [i for i in range(len(entry))]
-        patterns = []
-        for subset in _powerset(positions):
-            pattern = tuple([(entry[i] if i in subset else None) for i in range(len(entry))])
-            patterns.append(pattern)
-        return patterns
-
-    @staticmethod
-    def matches(entry, pattern):
-        if len(entry) != len(pattern):
+    def matches(entry: BankItem, pattern: Pattern):
+        assert isinstance(entry, BankItem), "entry must be a BankItem"
+        assert isinstance(pattern, Pattern), "pattern must be a Pattern"
+        if entry.length() != len(pattern):
             return False
-        for i in range(len(pattern)):
-            if pattern[i] is not None and pattern[i] != entry[i]:
+        for i in range(pattern.length()):
+            if pattern[i] is not None and pattern[i] != entry.tableau[i]:
                 return False
         return True
 
-    def filter(self, pattern: Sequence[Optional[str]]) -> Iterator[str]:
+    def filter(self, pattern: Pattern) -> Iterator[BankItem]:
         if not isinstance(pattern, tuple):
             pattern = tuple(pattern)
         try:
             pattern_matches = self.by_pattern[pattern]
+            return pattern_matches.__iter__()
         except KeyError:
             # This will happen either because (a) zero words correspond to the pattern, or (b) the pattern
             # was not registered because its length is above the registry cap
             # TODO keep track of cap on instantiation and return empty set if entry length is under the cap
             return filter(lambda entry: Bank.matches(entry, pattern), self)
-        return pattern_matches.__iter__()
 
     def suggest_updates(self, state: FillState, template_idx: int) -> Iterator[Suggestion]:
+        this_bank = self
         answer: Answer = state.answers[template_idx]
         pattern = answer.pattern
-        matches = self.filter(pattern)
-        unused = filter(Bank.not_already_used_predicate(state.used), matches)
+        matches: Iterator[BankItem] = self.filter(pattern)
+        unused: Iterator[BankItem] = filter(Bank.not_already_used_predicate(state.used), matches)
         updates_iter = map(lambda entry: state.to_legend_updates_dict(entry, template_idx), unused)
         for legend_updates_ in updates_iter:
-            evaluator = lambda entry: self.is_valid_new_entry(state, entry)
-            new_answers: Dict[int, Tuple[str, ...]] = state.list_new_entries_using_updates(legend_updates_, template_idx, True, evaluator)
+            def evaluator(entry: WordTuple):
+                return this_bank.is_valid_new_entry(state, entry)
+            new_answers: Dict[int, WordTuple] = state.list_new_entries_using_updates(legend_updates_, template_idx, True, evaluator)
             if new_answers is not None:
-                new_entries_set: Dict[int, Tuple[str,...]] = dict()
+                new_entries_set: Dict[int, WordTuple] = dict()
                 for a_idx, new_entry in new_answers.items():
                     # test if new batch of entries contains duplicates
-                    if new_entry in new_entries_set:
+                    if new_entry in new_entries_set.values():
                         return False
                     new_entries_set[a_idx] = new_entry
                 yield Suggestion(legend_updates_, new_entries_set)
 
     @staticmethod
-    def not_already_used_predicate(already_used: Collection[str]) -> Callable[[str], bool]:
-        def not_already_used(entry):
-            return entry not in already_used
+    def not_already_used_predicate(already_used: Collection[str]) -> Callable[[BankItem], bool]:
+        def not_already_used(entry: BankItem):
+            return entry.rendering not in already_used
         return not_already_used
 
-    def is_valid_new_entry(self, state: FillState, entry: str):
+    def is_valid_new_entry(self, state: FillState, entry: WordTuple):
         return entry not in state.used and self.has_word(entry)
 
-    def has_word(self, entry: str):
-        return entry in self.word_set
+    def has_word(self, entry: WordTuple):
+        return entry in self.tableaus
 
     def __str__(self):
-        return "Bank<num_words={},num_patterns_registered={}>".format(len(self.word_set), len(self.by_pattern))
+        return "Bank<num_words={},num_patterns_registered={}>".format(len(self.deposits), len(self.by_pattern))
 
 
 _CONTINUE = False

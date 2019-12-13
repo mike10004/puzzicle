@@ -9,23 +9,23 @@ from puzzicon.grid import _ACROSS, _DOWN, _DARK
 class SquareTest(TestCase):
 
     def test_dark(self):
-        s = Square(0, 0)
+        s = Square(0, 0, 0)
         self.assertFalse(s.dark())
-        t = Square(0, 1, _DARK)
+        t = Square(0, 1, 1, _DARK)
         self.assertTrue(t.dark())
 
     def test_equals(self):
-        self.assertEqual(Square(0, 0, '_'), Square(0, 0, '_'))
-        self.assertNotEqual(Square(1, 0, '_'), Square(0, 0, '_'))
-        self.assertNotEqual(Square(1, 1, '_'), Square(1, 1, '.'))
-        self.assertEqual(Square(2, 2), Square(2, 2))
-        self.assertNotEqual(Square(3, 3), Square(3, 4))
+        self.assertEqual(Square(0, 0, 0, '_'), Square(0, 0, 0, '_'))
+        self.assertNotEqual(Square(1, 0, 2, '_'), Square(0, 0, 0, '_'))
+        self.assertNotEqual(Square(1, 1, 3, '_'), Square(1, 1, 3, '.'))
+        self.assertEqual(Square(2, 2, 8), Square(2, 2, 8))
+        self.assertNotEqual(Square(3, 3, 14), Square(3, 4, 15))
 
     def test___str__(self):
-        self.assertEqual("(0, 0, '_')", str(Square(0, 0, '_')))
+        self.assertEqual("(0, 0, 0, '_')", str(Square(0, 0, 0, '_')))
 
     def test_list_equals(self):
-        self.assertListEqual([Square(0, 0)], [Square(0, 0)])
+        self.assertListEqual([Square(0, 0, 0)], [Square(0, 0, 0)])
 
 
 class LocationTest(TestCase):
@@ -52,15 +52,15 @@ class GridModelTest(TestCase):
         g = GridModel.build("__.___.__")
         self.assertEqual(3, g.num_rows)
         self.assertEqual(3, g.num_cols)
-        self.assertEqual(Square(0, 1, '_'), g.square(0, 1))
-        self.assertEqual(Square(0, 2, '.'), g.square(0, 2))
+        self.assertEqual(Square(0, 1, 1, '_'), g.square(0, 1))
+        self.assertEqual(Square(0, 2, 2, '.'), g.square(0, 2))
         self.assertEqual('_', g.value(0, 0))
         one_across = g.until_dead_across(0, 0)
-        self.assertListEqual([Square(0, 0, '_'), Square(0, 1, '_')], one_across)
+        self.assertListEqual([Square(0, 0, 0, '_'), Square(0, 1, 1, '_')], one_across)
         one_down = g.until_dead_down(0, 0)
-        self.assertListEqual([Square(0, 0, '_'), Square(1, 0, '_')], one_down)
+        self.assertListEqual([Square(0, 0, 0, '_'), Square(1, 0, 3, '_')], one_down)
         two_down = g.until_dead_down(0, 1)
-        self.assertListEqual([Square(0, 1, '_'), Square(1, 1, '_'), Square(2, 1, '_')], two_down)
+        self.assertListEqual([Square(0, 1, 1, '_'), Square(1, 1, 4, '_'), Square(2, 1, 7, '_')], two_down)
 
     def test_entries_3x3_1(self):
         g = GridModel.build("__.___.__")
@@ -72,4 +72,4 @@ class GridModelTest(TestCase):
         self.assertEqual(('across', 3, 1, 0), e[3].location)
         self.assertEqual(('down', 4, 1, 2), e[4].location)
         self.assertEqual(('across', 5, 2, 1), e[5].location)
-        self.assertListEqual([Square(0, 1, '_'), Square(1, 1, '_'), Square(2, 1, '_')], e[2].squares)
+        self.assertListEqual([Square(0, 1, 1, '_'), Square(1, 1, 4, '_'), Square(2, 1, 7, '_')], e[2].squares)

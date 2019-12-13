@@ -7,9 +7,16 @@ import time
 from typing import Tuple, NamedTuple, Iterator, Sequence, List
 from unittest import TestCase, SkipTest
 import puzzicon
-from puzzicon.fill import Answer, FillState, Filler, Bank, FillStateNode, Suggestion
+from puzzicon.fill import Answer
+from puzzicon.fill import FillState
+from puzzicon.fill import Filler
+from puzzicon.fill import Bank
+from puzzicon.fill import FillStateNode
+from puzzicon.fill import Suggestion
 from puzzicon.fill import FillListener, FirstCompleteListener, AllCompleteListener
 from puzzicon.grid import GridModel
+from puzzicon.fill import WordTuple
+from puzzicon.fill import BankItem
 import logging
 import tests
 
@@ -35,35 +42,37 @@ def map_all(templates: Sequence[int], legend: Sequence[str]) -> List[Answer]:
     return [Answer.define(list(map(get_or_default, template))) for template in templates]
 
 
-def create_bank(*args):
-    puzzemes = puzzicon.create_puzzeme_set(args)
-    return Bank.with_registry([p.canonical for p in puzzemes])
+
+class WordTest(TestCase):
+
+    def test_create_from_string(self):
+        w = WordTuple('foo')
+        self.assertTupleEqual(('f', 'o', 'o'), w)
+
+    def test_create_from_sequence(self):
+        w = WordTuple(['f', 'o', 'o'])
+        self.assertTupleEqual(('f', 'o', 'o'), w)
 
 
-def create_bank_from_wordlist_file(pathname: str='/usr/share/dict/words'):
-    puzzemes = puzzicon.read_puzzeme_set(pathname)
-    return Bank.with_registry([p.canonical for p in puzzemes])
-
-
-class Answer(TestCase):
+class AnswerTest(TestCase):
 
     def test_create(self):
         t = Answer.define([0, 1, 2])
         self.assertIsInstance(t, tuple)
         self.assertTupleEqual((0, 1, 2), t.content)
         self.assertTupleEqual((None, None, None), t.pattern)
-        self.assertEqual(0, t.strength)
+        self.assertEqual(0, t.strength, "strength")
 
     def test_create2(self):
         t = Answer.define([0, 'b', 2])
         self.assertTupleEqual((0, 'b', 2), t.content)
         self.assertTupleEqual((None, 'b', None), t.pattern)
-        self.assertEqual(1, t.strength)
+        self.assertEqual(1, t.strength, "strength")
 
     def test_create_shortcut(self):
         t = T(0, 1, 2)
         self.assertIsInstance(t, Answer)
-        self.assertEqual(0, t.strength)
+        self.assertEqual(0, t.strength, "strength")
 
 class ModuleTest(TestCase):
 
@@ -111,22 +120,22 @@ class FillStateTest(TestCase):
     def test_advance_basic(self):
         grid = GridModel.build("____")
         state1 = FillState.from_grid(grid)
-        state2 = state1.advance_unchecked(Suggestion({0: 'a', 1: 'b'}, {0: 'ab'}))
+        state2 = state1.advance_unchecked(Suggestion({0: 'a', 1: 'b'}, {0: WordTuple('ab')}))
         self.assertIs(state1.crosses, state2.crosses)
         self.assertNotEqual(state1, state2)
         self.assertSetEqual({'ab'}, set(Render.filled(state2)))
 
     def test_advance_additional_entries_added(self):
         # noinspection PyTypeChecker
-        state2 = FillState.from_answers((A('a','b'),A(2,3),A('a',2),A('b',3)))
-        sugg = Suggestion({2: 'c', 3: 'd'}, {1: 'cd', 2: 'ac', 3: 'bd'})
+        state2 = FillState.from_answers((A('a','b'),A(2,3),A('a',2),A('b',3)), (2, 2))
+        sugg = Suggestion({2: 'c', 3: 'd'}, {1: WordTuple('cd'), 2: WordTuple('ac'), 3: WordTuple('bd')})
         state3 = state2.advance_unchecked(sugg)
         self.assertSetEqual({'ab', 'cd', 'ac', 'bd'}, set(Render.filled(state3)))
 
     def test_advance_additional_entries_added_incorrect(self):
         # noinspection PyTypeChecker
-        state2 = FillState.from_answers((A('a', 'c'),A(2,3),A('a',2),A('c',3)))
-        sugg = Suggestion({2: 'c', 3: 'd'}, {1: 'cd', 2: 'ac', 3: 'cd'})
+        state2 = FillState.from_answers((A('a', 'c'),A(2,3),A('a',2),A('c',3)), (2, 2))
+        sugg = Suggestion({2: 'c', 3: 'd'}, {1: WordTuple('cd'), 2: WordTuple('ac'), 3: WordTuple('cd')})
         state3 = state2.advance_unchecked(sugg)
         self.assertSetEqual({'ac', 'cd'}, set(Render.filled(state3)))
 
@@ -139,7 +148,7 @@ class FillStateTest(TestCase):
             (5, 2),
             (4, 4, 4, 0, 4, 2),
         )
-        state = FillState.from_answers(map_all(templates, ['a', 'b', 'c', 'd', 'e', 'f']))
+        state = FillState.from_answers(map_all(templates, ['a', 'b', 'c', 'd', 'e', 'f']), (3, 3))
         self.assertTrue(state.is_complete())
         templates = (
             (0, 1, 2),
@@ -148,7 +157,7 @@ class FillStateTest(TestCase):
             (5, 2),
             (4, 4, 4, 0, 4, 2),
         )
-        state = FillState.from_answers(map_all(templates, ['a', 'b', 'c', 'd', 'e', 'f']))
+        state = FillState.from_answers(map_all(templates, ['a', 'b', 'c', 'd', 'e', 'f']), (4, 4))
         self.assertFalse(state.is_complete())
 
     # noinspection PyTypeChecker
@@ -161,89 +170,27 @@ class FillStateTest(TestCase):
             (4, 9, 4, 0, 4, 2),
         )
         answers = map_all(templates, ['a', 'b', 'c', 'd', 'e', 'f'])
-        state = FillState.from_answers(answers)
+        state = FillState.from_answers(answers, (4, 4))
         unfilled = list(state.unfilled())
         self.assertListEqual([2, 4], unfilled)
 
     def test_to_legend_updates(self):
-        state = FillState.from_answers((T('G', 'H'), T('G', 2), T('H', 3), T(2, 3)))
-        actual = state.to_legend_updates_dict('GX', 1)
+        state = FillState.from_answers((T('G', 'H'), T('G', 2), T('H', 3), T(2, 3)), (4, 4))
+        actual = state.to_legend_updates_dict(BankItem.from_word('GX'), 1)
         self.assertDictEqual({2: 'X'}, actual)
 
-    def test_list_new_entries_using_updates(self):
-        templates: Tuple[Answer, ...] = (T(0,1), T(2,3), T(0,2), T(1,3))
-        state = FillState.from_answers(templates)
-        actual = state.list_new_entries_using_updates({2:'C',3:'D'}, 1, False)
-        self.assertDictEqual({2: 'AC', 3: 'BD'}, actual)
+    def test_list_new_entries_using_updates_exclude(self):
+        templates: Tuple[Answer, ...] = (T('A', 'B'), T(2,3), T('A', 2), T('B', 3))
+        state = FillState.from_answers(templates, (2, 2))
+        actual = state.list_new_entries_using_updates({2:'C', 3:'D'}, 1, False)
+        self.assertDictEqual({2: WordTuple('AC'), 3: WordTuple('BD')}, actual)
 
+    def test_list_new_entries_using_updates_include(self):
+        templates: Tuple[Answer, ...] = (T('A', 'B'), T(2,3), T('A', 2), T('B', 3))
+        state = FillState.from_answers(templates, (2, 2))
+        actual = state.list_new_entries_using_updates({2:'C', 3:'D'}, 1, True)
+        self.assertDictEqual({2: WordTuple('AC'), 3: WordTuple('BD'), 1: WordTuple('CD')}, actual)
 
-class BankTest(TestCase):
-
-    def test_matches(self):
-        good = [
-            ('ABC', ['A', None, 'C']),
-            ('ABC', [None, None, None]),
-            ('ABC', ['A', 'B', 'C']),
-            ('ABC', [None, None, 'C']),
-            ('ABC', [None, 'B', 'C']),
-            ('ABC', [None, 'B', None]),
-        ]
-        for entry, pattern in good:
-            with self.subTest():
-                self.assertTrue(Bank.matches(entry, pattern))
-
-    def test_matches_false(self):
-        bad = [
-            ('ABC', ['X', None, 'C']),
-            ('ABC', [None, 'C', None]),
-            ('ABC', ['X', 'B', 'C']),
-            ('ABC', ['A', 'B']),
-        ]
-        for entry, pattern in bad:
-            with self.subTest():
-                self.assertFalse(Bank.matches(entry, pattern))
-
-    def test_suggest_1(self):
-        words = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
-        bank = create_bank(*words)
-        templates: Tuple[Answer, ...] = (T(0,1), T(2,3), T(0,2), T(1,3))
-        state = FillState.from_templates(templates)
-        actual = set(bank.suggest_updates(state, 0).new_entries)
-        self.assertSetEqual(set(words), actual)
-
-    def test_suggest_3(self):
-        bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
-        templates: Tuple[Answer, ...] = (T('A', 'B'), T(2,3), T('A',2), T('B',3))
-        state = FillState.from_answers(templates)
-        actual = set(bank.suggest_updates(state, 2).new_entries)
-        self.assertSetEqual({'AC', 'AX'}, actual)
-
-    def test_suggest_2(self):
-        words_2chars = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
-        words_3chars = ['TAB', 'QCD', 'YAC', 'CBD', 'JXY', 'TJJ', 'NOP']
-        all_words = words_2chars + words_3chars
-        bank = create_bank(*all_words)
-        templates = (T(0,1), T(2,3), T(0,2), T(1,3))
-        state = FillState.from_templates(templates)
-        actual = set(bank.suggest_updates(state, 0).new_entries)
-        self.assertSetEqual(set(words_2chars), actual)
-
-    def test_filter(self):
-        bank = create_bank('ABC', 'DEF', 'ABX', 'G', 'HI', 'ACC')
-        actual = set(bank.filter(['A', 'B', None]))
-        self.assertSetEqual({'ABC', 'ABX'}, actual)
-
-    def test_big_bank(self):
-        if not tests.is_long_tests_enabled():
-            raise SkipTest("long tests are not enabled")
-        start = time.perf_counter()
-        bank = create_bank_from_wordlist_file()
-        end = time.perf_counter()
-        print("sizeof(/usr/share/dict/words) =", sys.getsizeof(bank))
-        print("created in {} seconds".format(end - start))
-        matches = list(bank.filter(['A', None, None, 'L', 'E']))
-        self.assertIn('APPLE', matches)
-        self.assertIn('ADDLE', matches)
 
 
 def _show_path(node: FillStateNode, grid: GridModel):
@@ -272,7 +219,7 @@ class FillerTest(TestCase):
 
     def _do_fill_2x2(self, grid: GridModel, listener: FillListener) -> FillResult:
         wordlist = _WORDS_2x2 + ['XY', 'GH', 'IJ']
-        bank = create_bank(*wordlist)
+        bank = tests.create_bank(*wordlist)
         return self._do_fill(grid, listener, bank)
 
     def _do_fill(self, grid: GridModel, listener: FillListener, bank: Bank) -> FillResult:
@@ -316,7 +263,7 @@ class FillerTest(TestCase):
 
     def _do_fill_3x3(self, grid: GridModel, listener: FillListener) -> FillResult:
         wordlist = _WORDS_3x3 + _NONWORDS_3x3
-        bank = create_bank(*wordlist)
+        bank = tests.create_bank(*wordlist)
         return self._do_fill(grid, listener, bank)
 
     def _check_3x3_filled(self, state: FillState):
@@ -343,7 +290,7 @@ class FillerTest(TestCase):
         wordlist = list(_WORDS_5x5) + list(_NONWORDS_5x5)
         rng = random.Random(0xf177)
         rng.shuffle(wordlist)
-        bank = create_bank(*wordlist)
+        bank = tests.create_bank(*wordlist)
         fill_result = self._do_fill(grid, FirstCompleteListener(100000), bank)
         state = fill_result.value
         # noinspection PyTypeChecker

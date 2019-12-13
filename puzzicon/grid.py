@@ -9,13 +9,12 @@ _DOWN = 'down'
 _DARK = '.'
 
 
-class Square(object):
+class Square(NamedTuple):
 
-    def __init__(self, row: int, col: int, index: int, value: str=None):
-        self.row = row
-        self.col = col
-        self.index = index
-        self.value = value
+    row: int
+    col: int
+    index: int
+    value: str = None
 
     def dark(self) -> bool:
         return self.value == _DARK
@@ -24,7 +23,7 @@ class Square(object):
         return isinstance(other, Square) and self.row == other.row and self.col == other.col and self.value == other.value
 
     def __str__(self):
-        return "({}, {}, {})".format(self.row, self.col, repr(self.value))
+        return "({}, {}, {}, {})".format(self.row, self.col, self.index, repr(self.value))
 
 
 class Location(NamedTuple):
@@ -66,6 +65,9 @@ class GridModel(object):
         dim = math.sqrt(num_squares)
         assert round(dim) == dim
         return int(dim), int(dim)
+
+    def dims(self) -> Tuple[int, int]:
+        return self.num_rows, self.num_cols
 
     def get_index(self, square: Square) -> int:
         return square.row * self.num_cols + square.col

@@ -5,6 +5,8 @@ import os
 import os.path
 import errno
 from typing import List, Dict, DefaultDict
+import puzzicon
+import puzzicon.fill
 
 _ENV_LOG_LEVEL = 'UNIT_TESTS_LOG_LEVEL'
 _TESTS_ENV_FILE_FILENAME = 'tests.env'
@@ -99,3 +101,14 @@ data = _Data()
 
 def is_long_tests_enabled():
     return False
+
+
+def create_bank(*args):
+    puzzemes = puzzicon.create_puzzeme_set(args)
+    return puzzicon.fill.Bank.with_registry([p.canonical for p in puzzemes])
+
+
+def create_bank_from_wordlist_file(pathname: str='/usr/share/dict/words'):
+    puzzemes = puzzicon.read_puzzeme_set(pathname)
+    return puzzicon.fill.Bank.with_registry([p.canonical for p in puzzemes])
+
