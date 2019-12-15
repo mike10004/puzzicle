@@ -8,6 +8,7 @@
     <property name="install.dir" value="${user.home}/.local/bin"/>
     <property name="install.overwrite" value="false"/>
     <property name="python.executable" value="python3"/>
+    <property name="tests.skip" value="false"/>
 
     <macrodef name="check-main" >
         <text name="progname" optional="false"/>
@@ -58,7 +59,7 @@
         </sequential>
     </macrodef>
 
-    <target name="unittest" description="run tests">
+    <target name="unittest" description="run tests" unless="tests.skip">
         <exec executable="${python.executable}" failonerror="true">
             <arg value="--version"/>
         </exec>
