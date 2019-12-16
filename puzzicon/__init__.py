@@ -22,6 +22,7 @@ def _create_constant_callable(retval):
     return _constant
 
 
+_EMPTY_SET = frozenset()
 _CALLABLE_TRUE = _create_constant_callable(True)
 _CALLABLE_FALSE = _create_constant_callable(False)
 _ALPHABET_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -83,10 +84,12 @@ class Puzzeme(NamedTuple):
         return Puzzeme(canonical, tuple(renderings))
 
     @staticmethod
-    def canonicalize(rendering, allowed='alpha'):
+    def canonicalize(rendering: str, allowed: str='alpha', preserve: Set[str]=_EMPTY_SET) -> str:
         if _contains_nonalphabet(rendering, allowed):
             rendering = unicode_normalize(rendering)
-        canonical = re.sub(get_regex_noncharmatch(allowed), '', rendering).strip().upper()
+        canonical = re.sub(get_regex_noncharmatch(allowed), '', rendering).strip()
+        if 'case' not in preserve:
+            canonical = canonical.upper()
         return canonical
 
     def stature(self):
