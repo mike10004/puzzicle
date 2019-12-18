@@ -2,11 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import random
-import sys
 
-from puzzicon.fill import Legend, FillState, Filler, Bank, FirstCompleteListener, AllCompleteListener, FillListener
+import examples
 from puzzicon.grid import GridModel
-import time
 
 _WORDS_9x9 = """\
 ABC
@@ -59,21 +57,7 @@ def main():
                            "___.___")
     wordlist = list(_DICTIONARY_9x9)
     rng = random.Random(0xf177)
-    rng.shuffle(wordlist)
-    bank = Bank.with_registry(list(map(str.upper, _DICTIONARY_9x9)))
-    state = FillState.from_grid(grid)
-    listener = FirstCompleteListener(100 * 1000)
-    filler = Filler(bank)
-    fill_start = time.perf_counter()
-    filler.fill(state, listener)
-    fill_end = time.perf_counter()
-    print("{} seconds to complete".format(fill_end - fill_start))
-    state = listener.value()
-    if state is not None:
-        print(state.render(grid))
-        return 0
-    print("no solution found", file=sys.stderr)
-    return 2
+    return examples.do_main(grid, wordlist, rng, 800 * 1000)
 
 if __name__ == '__main__':
     exit(main())
