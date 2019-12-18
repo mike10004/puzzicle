@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from puzzicon import Puzzeme
-import puzzicon.grid
-from collections import defaultdict
-import itertools
-from puzzicon.grid import GridModel
 from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, Any
 from typing import NamedTuple, Collection, FrozenSet, Union, Iterable
 import logging
@@ -90,7 +85,14 @@ class Answer(NamedTuple):
         return True
 
     def render_content(self, legend_updates: Dict[int, str]) -> Union[Template, WordTuple]:
+        """
+        Produces a new template or word-tuple by updating this answer's template
+        with the given mapping of grid indexes to cell content.
+        @param legend_updates: map of grid indexes to cell content
+        @return: a template, or a word-tuple if the template would have zero unknowns
+        """
         num_unknown = 0
+        num_updates = 0
         letters = []
         for spot in self.content:
             if isinstance(spot, int):
@@ -98,10 +100,28 @@ class Answer(NamedTuple):
                 if val is None:
                     val = spot
                     num_unknown += 1
+                else:
+                    num_updates += 1
                 letters.append(val)
             else:
                 letters.append(spot)
         return WordTuple(letters) if num_unknown == 0 else Template(letters)
+
+    def to_updates(self, entry: BankItem) -> Dict[int, str]:
+        """
+        Returns a map of grid indexes to cell content that represents each new mapping
+        forced by the given entry.
+        @param entry: the entry
+        @return: a dictionary
+        """
+        assert self.length() == entry.length()
+        legend_updates: Dict[int, str] = {}
+        for i in range(entry.length()):
+            if not self.is_defined(i):
+                k, v = self.content[i], entry.tableau[i]
+                legend_updates[k] = v
+        return legend_updates
+
 
 
 def _sort_and_check_duplicates(items: list) -> bool:

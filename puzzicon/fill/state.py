@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from puzzicon import Puzzeme
 import puzzicon.grid
 from collections import defaultdict
-import itertools
 from puzzicon.grid import GridModel
 from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, Any
 from typing import NamedTuple, Collection, FrozenSet, Union, Iterable
@@ -114,19 +112,6 @@ class FillState(NamedTuple):
             rows.append(''.join(row))
         return newline.join(rows)
 
-    def to_legend_updates_dict(self, entry: BankItem, answer_idx: int) -> Dict[int, str]:
-        """
-        Shows what new grid index to letter mappings would be defined if a template were to be filled by the given entry.
-        """
-        answer: Answer = self.answers[answer_idx]
-        assert answer.length() == entry.length(), f"entry '{entry}' does not fit in answer {answer.pattern}"
-        legend_updates: Dict[int, str] = {}
-        for i in range(entry.length()):
-            if not answer.is_defined(i):
-                k, v = answer.content[i], entry.tableau[i]
-                legend_updates[k] = v
-        return legend_updates
-
     def list_new_entries_using_updates(self, legend_updates: Dict[int, str],
                                        template_idx: int,
                                        include_template_idx: bool,
@@ -153,8 +138,8 @@ class FillState(NamedTuple):
                         another_entry = answer.render_content(legend_updates)
                         if evaluator is not None and (not evaluator(another_entry)):
                             return None
-                        # because render_after returns an effective WordTuple when is_all_defined_after returns True,
-                        # we can ignore this type mismatch
+                        # render_content() returns an effective WordTuple when is_all_defined_after
+                        # returns True, so we can ignore this type mismatch.
                         # noinspection PyTypeChecker
                         updated_answers[a_idx] = another_entry
         return updated_answers

@@ -27,7 +27,7 @@ def simple_puzzemes():
         SIMPLE_PUZZEME_SET = puzzicon.create_puzzeme_set(['foo', 'bar', 'baz', 'gaw'])
     return SIMPLE_PUZZEME_SET
 
-class TestModuleMethods(unittest.TestCase):
+class ModuleMethodsTest(unittest.TestCase):
 
     def test_create_puzzeme_set_multiple_renderings(self):
         wordlist = """\
@@ -61,7 +61,7 @@ pumpkin"""
         self.assertEqual(26 * 2, len(set(puzzicon._ALPHABET_ALPHA)))
 
 
-class TestPuzzeme(unittest.TestCase):
+class PuzzemeTest(unittest.TestCase):
 
     def test_create_alphanumeric(self):
         p = Puzzeme.create('a1', allowed='alphanumeric')
@@ -102,7 +102,7 @@ class TestPuzzeme(unittest.TestCase):
 
 
 
-class TestPuzzarian(unittest.TestCase):
+class PuzzarianTest(unittest.TestCase):
 
     def test_search_many(self):
         p = Puzzarian(default_puzzemes())

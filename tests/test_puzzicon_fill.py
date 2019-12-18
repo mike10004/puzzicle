@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import random
-import sys
-import time
 from typing import Tuple, NamedTuple, Iterator, Sequence, List
 from unittest import TestCase, SkipTest
 import puzzicon
@@ -76,6 +73,13 @@ class AnswerTest(TestCase):
         t = T(0, 1, 2)
         self.assertIsInstance(t, Answer)
         self.assertEqual(0, t.strength, "strength")
+
+    def test_to_legend_updates(self):
+        answer = Answer.define(('G', 2))
+        actual = answer.to_updates(BankItem.from_word('GX'))
+        self.assertDictEqual({2: 'X'}, actual)
+
+
 
 class ModuleTest(TestCase):
 
@@ -195,11 +199,6 @@ class FillStateTest(TestCase):
         state = FillState.from_answers(answers, (4, 4))
         unfilled = list(state.unfilled())
         self.assertListEqual([2, 4], unfilled)
-
-    def test_to_legend_updates(self):
-        state = FillState.from_answers((T('G', 'H'), T('G', 2), T('H', 3), T(2, 3)), (4, 4))
-        actual = state.to_legend_updates_dict(BankItem.from_word('GX'), 1)
-        self.assertDictEqual({2: 'X'}, actual)
 
     def test_list_new_entries_using_updates_exclude(self):
         templates: Tuple[Answer, ...] = (T('A', 'B'), T(2,3), T('A', 2), T('B', 3))
