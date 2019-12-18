@@ -9,13 +9,9 @@ from unittest import TestCase, SkipTest
 import puzzicon
 from puzzicon.fill import Answer
 from puzzicon.fill import Pattern
-from puzzicon.fill import FillState
-from puzzicon.fill import Filler
-from puzzicon.fill import Bank
-from puzzicon.fill import FillStateNode
+from puzzicon.fill.state import FillState
+from puzzicon.fill.bank import Bank
 from puzzicon.fill import Suggestion
-from puzzicon.fill import FillListener, FirstCompleteListener, AllCompleteListener
-from puzzicon.grid import GridModel
 from puzzicon.fill import WordTuple
 from puzzicon.fill import BankItem
 import logging

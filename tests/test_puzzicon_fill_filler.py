@@ -1,27 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import random
-import sys
-import time
-import unittest
-from typing import Tuple, NamedTuple, Iterator, Sequence, List
-from unittest import TestCase, SkipTest
-import puzzicon
-from puzzicon.fill import Answer
-from puzzicon.fill import FillState
-from puzzicon.fill import Filler
-from puzzicon.fill import Bank
-from puzzicon.fill import FillStateNode
-from puzzicon.fill import Suggestion
-from puzzicon.fill import FillListener, FirstCompleteListener, AllCompleteListener
-from puzzicon.grid import GridModel
-from puzzicon.fill import WordTuple
-from puzzicon.fill import BankItem
 import logging
-import tests
-from tests import Render
+import random
+from typing import NamedTuple
+from unittest import TestCase
 
+import tests
+from puzzicon.fill.bank import Bank
+from puzzicon.fill.filler import FillListener, FirstCompleteListener, AllCompleteListener
+from puzzicon.fill.filler import FillStateNode
+from puzzicon.fill.filler import Filler
+from puzzicon.fill.state import FillState
+from puzzicon.grid import GridModel
+from tests import Render
 
 _log = logging.getLogger(__name__)
 

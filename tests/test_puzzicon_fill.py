@@ -8,12 +8,10 @@ from typing import Tuple, NamedTuple, Iterator, Sequence, List
 from unittest import TestCase, SkipTest
 import puzzicon
 from puzzicon.fill import Answer
-from puzzicon.fill import FillState
+from puzzicon.fill.state import FillState
 from puzzicon.fill import Template
 from puzzicon.fill import Pattern
-from puzzicon.fill import FillStateNode
 from puzzicon.fill import Suggestion
-from puzzicon.fill import FillListener, FirstCompleteListener, AllCompleteListener
 from puzzicon.grid import GridModel
 from puzzicon.fill import WordTuple
 from puzzicon.fill import BankItem

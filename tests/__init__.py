@@ -7,6 +7,8 @@ import errno
 from typing import List, Dict, DefaultDict, Iterator
 import puzzicon
 import puzzicon.fill
+import puzzicon.fill.state
+import puzzicon.fill.bank
 
 _ENV_LOG_LEVEL = 'UNIT_TESTS_LOG_LEVEL'
 _TESTS_ENV_FILE_FILENAME = 'tests.env'
@@ -105,18 +107,18 @@ def is_long_tests_enabled():
 
 def create_bank(*args):
     puzzemes = puzzicon.create_puzzeme_set(args)
-    return puzzicon.fill.Bank.with_registry([p.canonical for p in puzzemes])
+    return puzzicon.fill.bank.Bank.with_registry([p.canonical for p in puzzemes])
 
 
 def create_bank_from_wordlist_file(pathname: str='/usr/share/dict/words'):
     puzzemes = puzzicon.read_puzzeme_set(pathname)
-    return puzzicon.fill.Bank.with_registry([p.canonical for p in puzzemes])
+    return puzzicon.fill.bank.Bank.with_registry([p.canonical for p in puzzemes])
 
 
 class Render(object):
 
     @staticmethod
-    def filled(state: puzzicon.fill.FillState) -> Iterator[str]:
+    def filled(state: puzzicon.fill.state.FillState) -> Iterator[str]:
         return filter(lambda x: x is not None, state.used)
 
 
