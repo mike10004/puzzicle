@@ -95,26 +95,13 @@ class Answer(NamedTuple):
         for spot in self.content:
             if isinstance(spot, int):
                 val = legend_updates.get(spot, None)
-                num_unknown += (0 if val is None else 1)
                 if val is None:
                     val = spot
+                    num_unknown += 1
                 letters.append(val)
             else:
                 letters.append(spot)
         return WordTuple(letters) if num_unknown == 0 else Template(letters)
-
-    def render_pattern(self, legend_updates: Dict[int, str]) -> Union[Pattern, WordTuple]:
-        num_unknown = 0
-        letters = []
-        for spot in self.content:
-            if isinstance(spot, int):
-                val = legend_updates.get(spot, None)
-                letters.append(val)
-                num_unknown += (0 if val is None else 1)
-            else:
-                letters.append(spot)
-        return WordTuple(letters) if num_unknown == 0 else Pattern(letters)
-
 
 
 def _sort_and_check_duplicates(items: list) -> bool:

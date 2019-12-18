@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from puzzicon import Puzzeme
-import puzzicon.grid
-from collections import defaultdict
 import itertools
-from puzzicon.grid import GridModel
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, Any
-from typing import NamedTuple, Collection, FrozenSet, Union, Iterable
 import logging
+from collections import defaultdict
+from typing import Collection, FrozenSet, Set, Optional
+from typing import List, Sequence, Dict, Iterator, Callable
+
 from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer
 from puzzicon.fill.state import FillState
 
@@ -33,7 +31,7 @@ def _patterns(entry: WordTuple) -> List[Pattern]:
 
 class Bank(object):
 
-    def __init__(self, deposits: FrozenSet[BankItem], tableaus: FrozenSet[WordTuple], by_pattern: Dict[Pattern, List[BankItem]], debug:bool=True):
+    def __init__(self, deposits: FrozenSet[BankItem], tableaus: FrozenSet[WordTuple], by_pattern: Dict[Pattern, List[BankItem]], debug:bool=False):
         assert isinstance(deposits, frozenset)
         self.deposits = deposits
         assert isinstance(tableaus, frozenset)
@@ -43,7 +41,7 @@ class Bank(object):
         self.debug = debug
 
     @staticmethod
-    def with_registry(entries: Sequence[str], pattern_registry_cap=9):
+    def with_registry(entries: Sequence[str], pattern_registry_cap=9, debug: bool=False):
         deposits = frozenset([BankItem.from_word(entry) for entry in entries])
         tableaus = frozenset([item.tableau for item in deposits])
         by_pattern = defaultdict(list)
@@ -52,9 +50,9 @@ class Bank(object):
                 patterns = _patterns(entry.tableau)
                 for pattern in patterns:
                     by_pattern[pattern].append(entry)
-        # for pattern_list in by_pattern.values():
-        #     pattern_list.sort()
-        return Bank(deposits, tableaus, by_pattern)
+        for pattern_list in by_pattern.values():
+            pattern_list.sort()
+        return Bank(deposits, tableaus, by_pattern, debug)
 
     @staticmethod
     def matches(entry: BankItem, pattern: Pattern):
@@ -96,15 +94,20 @@ class Bank(object):
         for legend_updates_ in updates_iter:
             def evaluator(entry: WordTuple):
                 return this_bank.is_valid_new_entry(state, entry)
-            new_answers: Dict[int, WordTuple] = state.list_new_entries_using_updates(legend_updates_, template_idx, True, evaluator)
+            new_answers: Optional[Dict[int, WordTuple]] = state.list_new_entries_using_updates(legend_updates_, template_idx, True, evaluator)
             if new_answers is not None:
-                new_entries_set: Dict[int, WordTuple] = dict()
+                new_entries_dict: Dict[int, WordTuple] = dict()
+                new_entries_set: Set[WordTuple] = set()
+                has_dupes = False
                 for a_idx, new_entry in new_answers.items():
                     # test if new batch of entries contains duplicates
-                    if new_entry in new_entries_set.values():
-                        return False
-                    new_entries_set[a_idx] = new_entry
-                yield Suggestion(legend_updates_, new_entries_set)
+                    if new_entry in new_entries_set:
+                        has_dupes = True
+                        break
+                    new_entries_dict[a_idx] = new_entry
+                    new_entries_set.add(new_entry)
+                if not has_dupes:
+                    yield Suggestion(legend_updates_, new_entries_dict)
 
     @staticmethod
     def not_already_used_predicate(already_used: Collection[str]) -> Callable[[BankItem], bool]:

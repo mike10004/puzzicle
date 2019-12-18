@@ -57,7 +57,7 @@ def main():
                            "___.___")
     wordlist = list(_DICTIONARY_9x9)
     rng = random.Random(0xf177)
-    return examples.do_main(grid, wordlist, rng, 800 * 1000)
+    return examples.do_main(grid, wordlist, rng, 400 * 1000)
 
 if __name__ == '__main__':
     exit(main())
