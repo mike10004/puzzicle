@@ -117,8 +117,8 @@ class FillState(NamedTuple):
                                        include_template_idx: bool,
                                        evaluator: Optional[Callable[[WordTuple], bool]]=None) -> Optional[Dict[int, WordTuple]]:
         """
-        Return a dictionary mapping answer indexes to word-tuples that includes only
-        those mappings where the word-tuple becomes completed by the given legend updates.
+        Return a dictionary mapping answer indexes to word-tuples where the
+        word-tuple becomes completed by the given legend updates.
 
         The answer corresponding to the given answer index is included
         in the set of updates only if include_template_idx is true.

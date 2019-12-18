@@ -129,7 +129,7 @@ class BankTest(TestCase):
 
     def test_filter(self):
         bank = create_bank('ABC', 'DEF', 'ABX', 'G', 'HI', 'ACC')
-        actual = set(bank.filter(['A', 'B', None]))
+        actual = set(bank.filter(Pattern(['A', 'B', None])))
         self.assertSetEqual({B('ABC'), B('ABX')}, actual)
 
     def test_big_bank(self):

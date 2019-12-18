@@ -43,7 +43,7 @@ def map_all(templates: Sequence[int], legend: Sequence[str]) -> List[Answer]:
 
 
 
-class WordTest(TestCase):
+class WordTupleTest(TestCase):
 
     def test_create_from_string(self):
         w = WordTuple('foo')
@@ -111,8 +111,6 @@ class ModuleTest(TestCase):
             a = b.copy()
             self.assertFalse(puzzicon.fill._sort_and_check_duplicates(a))
             self.assertListEqual(a, sorted(b))
-
-
 
 
 class FillStateTest(TestCase):

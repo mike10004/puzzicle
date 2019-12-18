@@ -66,6 +66,23 @@ class Bank(object):
                 return False
         return True
 
+    def count_filter(self, pattern: Pattern, uncountable=None) -> Optional[int]:
+        """
+        Counts the number of bank deposits that would be returned by a filter call.
+        @param pattern:  pattern to match
+        @param uncountable: value to return if uncountable
+        @return: count of matching deposits, or the value of uncountable parameter
+        """
+        if not isinstance(pattern, tuple):
+            pattern = tuple(pattern)
+        if self.pattern_registry_cap is not None and pattern.length() <= self.pattern_registry_cap:
+            try:
+                pattern_matches = self.by_pattern[pattern]
+                return len(pattern_matches)
+            except KeyError:  # implies zero words correspond to the pattern
+                return 0
+        return uncountable
+
     def filter(self, pattern: Pattern) -> Iterator[BankItem]:
         if not isinstance(pattern, tuple):
             pattern = tuple(pattern)
@@ -96,13 +113,12 @@ class Bank(object):
     def suggest_updates(self, state: FillState, answer_idx: int) -> Iterator[Suggestion]:
         this_bank = self
         answer: Answer = state.answers[answer_idx]
-        pattern = answer.pattern
-        matches: Iterator[BankItem] = self._explode(self.filter(pattern))
+        matches: Iterator[BankItem] = self._explode(self.filter(answer.pattern))
         unused: Iterator[BankItem] = self._explode(filter(Bank.not_already_used_predicate(state.used), matches))
         for bank_item in unused:
             legend_updates_ = answer.to_updates(bank_item)
-            def evaluator(entry: WordTuple):
-                return this_bank.is_valid_new_entry(state, entry)
+            def evaluator(candidate: WordTuple):
+                return this_bank.is_valid_candidate(state, candidate)
             new_answers: Optional[Dict[int, WordTuple]] = state.list_new_entries_using_updates(legend_updates_, answer_idx, True, evaluator)
             if new_answers is not None:
                 new_entries_dict: Dict[int, WordTuple] = dict()
@@ -124,8 +140,8 @@ class Bank(object):
             return entry.rendering not in already_used
         return not_already_used
 
-    def is_valid_new_entry(self, state: FillState, entry: WordTuple):
-        return entry not in state.used and self.has_word(entry)
+    def is_valid_candidate(self, state: FillState, candidate: WordTuple):
+        return candidate not in state.used and self.has_word(candidate)
 
     def has_word(self, entry: WordTuple):
         return entry in self.tableaus
