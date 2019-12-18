@@ -63,7 +63,7 @@ class GridModel(object):
     def determine_dims(grid_chars: str) -> Tuple[int, int]:
         num_squares = len(list(filter(lambda ch: ch not in "\r\n\t", grid_chars)))
         dim = math.sqrt(num_squares)
-        assert round(dim) == dim
+        assert round(dim) == dim, "expect puzzle to be a square"
         return int(dim), int(dim)
 
     def dims(self) -> Tuple[int, int]:

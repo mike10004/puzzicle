@@ -12,6 +12,7 @@ from puzzicon.fill.state import FillState
 
 _log = logging.getLogger(__name__)
 _EMPTY_SET = frozenset()
+_DEFAULT_MAX_PATTERN_LEN = 9
 
 def _powerset(iterable):
     """powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"""
@@ -42,7 +43,7 @@ class Bank(object):
         self.pattern_registry_cap = pattern_registry_cap
 
     @staticmethod
-    def with_registry(entries: Sequence[str], pattern_registry_cap=9, debug: bool=False):
+    def with_registry(entries: Sequence[str], pattern_registry_cap=_DEFAULT_MAX_PATTERN_LEN, debug: bool=False):
         deposits = frozenset([BankItem.from_word(entry) for entry in entries])
         tableaus = frozenset([item.tableau for item in deposits])
         by_pattern = defaultdict(list)

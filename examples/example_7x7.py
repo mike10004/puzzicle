@@ -6,7 +6,7 @@ import random
 import examples
 from puzzicon.grid import GridModel
 
-_WORDS_9x9 = """\
+_WORDS_7x7 = """\
 ABC
 BAG
 DOI
@@ -30,7 +30,7 @@ ICE
 SKI
 XES
 """.split("\n")
-_NONWORDS_9x9 = """\
+_NONWORDS_7x7 = """\
 FIT
 EXTERMINATE
 PAT
@@ -45,7 +45,7 @@ PIN
 AND
 MAROON
 """.split("\n")
-_DICTIONARY_9x9 = _WORDS_9x9 + _NONWORDS_9x9
+_DICTIONARY_7x7 = _WORDS_7x7 + _NONWORDS_7x7
 
 def main():
     grid = GridModel.build("___.___" +
@@ -55,7 +55,7 @@ def main():
                            "_______" +
                            "___.___" +
                            "___.___")
-    wordlist = list(_DICTIONARY_9x9)
+    wordlist = list(_DICTIONARY_7x7)
     rng = random.Random(0xf177)
     return examples.do_main(grid, wordlist, rng, 400 * 1000)
 
