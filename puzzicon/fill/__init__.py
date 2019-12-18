@@ -17,10 +17,37 @@ class WordTuple(Tuple[str, ...]):
     def length(self):
         return len(self)
 
+    # noinspection PyMethodMayBeStatic
+    def is_complete(self) -> bool:
+        return True
+
+
 class Pattern(Tuple[Optional[str], ...]):
 
     def length(self):
         return len(self)
+
+
+class Template(Tuple[Union[int, str], ...]):
+
+    _strength: int = None
+
+    def __new__(cls, seq, **kwargs) -> 'Template':
+        instance = tuple.__new__(Template, seq)
+        strength =  kwargs.get('strength', None)
+        if strength is None:
+            strength = 0
+            for x in seq:
+                if not isinstance(x, int):
+                    strength += 1
+        instance._strength = strength
+        return instance
+
+    def length(self):
+        return len(self)
+
+    def is_complete(self) -> bool:
+        return self._strength == len(self)
 
 
 class BankItem(NamedTuple):
@@ -47,9 +74,6 @@ class BankItem(NamedTuple):
     def __str__(self):
         return f"BankItem<{self.tableau}>"
 
-
-class Template(Tuple[Union[int, str], ...]):
-    pass
 
 class Answer(NamedTuple):
 

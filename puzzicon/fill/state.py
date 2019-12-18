@@ -7,7 +7,7 @@ from puzzicon.grid import GridModel
 from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, Any
 from typing import NamedTuple, Collection, FrozenSet, Union, Iterable
 import logging
-from puzzicon.fill import Answer, Pattern, WordTuple, Suggestion, BankItem
+from puzzicon.fill import Answer, Pattern, WordTuple, Suggestion, Template
 
 _log = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ class FillState(NamedTuple):
     def list_new_entries_using_updates(self, legend_updates: Dict[int, str],
                                        template_idx: int,
                                        include_template_idx: bool,
-                                       evaluator: Optional[Callable[[WordTuple], bool]]=None) -> Optional[Dict[int, WordTuple]]:
+                                       evaluator: Optional[Callable[[Template], bool]]=None) -> Optional[Dict[int, WordTuple]]:
         """
         Return a dictionary mapping answer indexes to word-tuples where the
         word-tuple becomes completed by the given legend updates.
@@ -134,12 +134,12 @@ class FillState(NamedTuple):
             for a_idx in crossing_answer_indexes:
                 if include_template_idx or (a_idx != template_idx):
                     answer: Answer = self.answers[a_idx]
-                    if answer.is_all_defined_after(legend_updates):
-                        another_entry = answer.render_content(legend_updates)
-                        if evaluator is not None and (not evaluator(another_entry)):
-                            return None
-                        # render_content() returns an effective WordTuple when is_all_defined_after
-                        # returns True, so we can ignore this type mismatch.
+                    another_entry: Template = answer.render_content(legend_updates)
+                    if evaluator is not None and (not evaluator(another_entry)):
+                        return None
+                    if another_entry.is_complete():
+                        # a complete Template is effectively a WordTuple, so we
+                        # can ignore this type mismatch.
                         # noinspection PyTypeChecker
                         updated_answers[a_idx] = another_entry
         return updated_answers

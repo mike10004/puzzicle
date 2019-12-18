@@ -54,6 +54,48 @@ class WordTupleTest(TestCase):
         self.assertTupleEqual(('f', 'o', 'o'), w)
 
 
+class TemplateTest(TestCase):
+
+    def test_len(self):
+        t = Template('foo')
+        self.assertEqual(3, len(t))
+
+    def test_equals(self):
+        self.assertTupleEqual(Template('foo'), Template(('f', 'o', 'o')))
+
+    def test_strength_arg(self):
+        self.assertTupleEqual(Template('foo', strength=3), Template(('f', 'o', 'o'), strength=3))
+        self.assertTrue(Template('foo', strength=3).is_complete())
+
+    def test__strength(self):
+        t = Template('foo')
+        self.assertEqual(3, t._strength)
+        u = Template(('f', 1, 'o'))
+        self.assertEqual(2, u._strength)
+
+    def test_create_from_string(self):
+        t = Template('foo')
+        self.assertTupleEqual(('f', 'o', 'o'), t)
+
+    def test_create_from_sequence(self):
+        w = Template(['f', 'o', 'o'])
+        self.assertTupleEqual(('f', 'o', 'o'), w)
+
+    def test_like_wordtuple(self):
+        w = WordTuple('foo')
+        t = Template('foo')
+        self.assertTupleEqual(t, w)
+
+    def test_is_complete_true(self):
+        t = Template('foo')
+        self.assertTrue(t.is_complete())
+
+    def test_is_complete_false(self):
+        t = Template(('a', 'b', 7))
+        self.assertFalse(t.is_complete())
+
+
+
 class AnswerTest(TestCase):
 
     def test_create(self):

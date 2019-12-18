@@ -13,6 +13,7 @@ from puzzicon.fill.state import FillState
 from puzzicon.fill.bank import Bank
 from puzzicon.fill import Suggestion
 from puzzicon.fill import WordTuple
+from puzzicon.fill import Template
 from puzzicon.fill import BankItem
 import logging
 import tests
@@ -53,7 +54,16 @@ def collect_new_entries(suggestions: Iterator[Suggestion]) -> Set[WordTuple]:
 
 class BankTest(TestCase):
 
-    def test_matches(self):
+    def test_has_word(self):
+        bank = create_bank('ALPHA', 'BETA', 'GAMMA', 'DELTA')
+        for good in [tuple('ALPHA'), WordTuple('BETA'), Template('GAMMA')]:
+            with self.subTest():
+                self.assertTrue(bank.has_word(good))
+        for bad in ['alpha', 'ALPHA', tuple('alpha'), WordTuple('alpha'), tuple('EPSILON'), WordTuple('ETA'), Template('ZETA')]:
+            with self.subTest():
+                self.assertFalse(bank.has_word(bad))
+
+    def test_matches_true(self):
         good = [
             ('ABC', ['A', None, 'C']),
             ('ABC', [None, None, None]),
@@ -81,13 +91,21 @@ class BankTest(TestCase):
                 pattern = Pattern(pattern)
                 self.assertFalse(Bank.matches(entry, pattern), f"expect {entry} does NOT match {pattern}")
 
-    def test_suggest_1(self):
+    def test_suggest_updates_1(self):
         words = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
         bank = create_bank(*words)
         answers: Tuple[Answer, ...] = (T(0,1), T(2,3), T(0,2), T(1,3))
         state = FillState.from_answers(answers, (2, 2))
-        actual = collect_new_entries(bank.suggest_updates(state, 0))
-        self.assertSetEqual(set(map(WordTuple, words)), actual)
+        updates = list(bank.suggest_updates(state, 0))
+        actual = collect_new_entries(updates)
+        self.assertSetEqual({W('AB'), W('AC'), W('JJ')}, actual)
+
+    def test_is_valid_candidate(self):
+        bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
+        state = FillState.from_answers(tuple(), (0, 0))
+        self.assertTrue(bank.is_valid_candidate(state, Template('XY')))
+        self.assertFalse(bank.is_valid_candidate(state, Template('MY')))
+        self.assertFalse(bank.is_valid_candidate(state, Template(('M', None))))
 
     def test_not_already_used_predicate(self):
         already_used = {'ABC'}
@@ -95,6 +113,10 @@ class BankTest(TestCase):
         self.assertTrue(is_not_already_used(BankItem.from_word('DEF')))
         self.assertFalse(is_not_already_used(BankItem.from_word('ABC')))
 
+    def test_count_filter(self):
+        bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
+        count = bank.count_filter(Pattern(('A', None)))
+        self.assertEqual(3, count)
 
     def test_filter_unused(self):
         bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
@@ -106,7 +128,7 @@ class BankTest(TestCase):
         unused_words = set(map(lambda b: b.rendering, unused))
         self.assertSetEqual({'AC', 'AX'}, unused_words)
 
-    def test_suggest_3(self):
+    def test_suggest_updates_3(self):
         bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
 
         # AB
@@ -117,7 +139,7 @@ class BankTest(TestCase):
         actual = collect_new_entries(bank.suggest_updates(state, 2))
         self.assertSetEqual({W('AC'), W('AX')}, actual)
 
-    def test_suggest_2(self):
+    def test_suggest_updates_2(self):
         words_2chars = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
         words_3chars = ['TAB', 'QCD', 'YAC', 'CBD', 'JXY', 'TJJ', 'NOP']
         all_words = words_2chars + words_3chars
@@ -125,7 +147,7 @@ class BankTest(TestCase):
         templates = (T(0,1), T(2,3), T(0,2), T(1,3))
         state = FillState.from_templates(templates, (2, 2))
         actual = collect_new_entries(bank.suggest_updates(state, 0))
-        self.assertSetEqual(set(map(WordTuple, words_2chars)), actual)
+        self.assertSetEqual({W('AB'), W('AC'), W('JJ')}, actual)
 
     def test_filter(self):
         bank = create_bank('ABC', 'DEF', 'ABX', 'G', 'HI', 'ACC')

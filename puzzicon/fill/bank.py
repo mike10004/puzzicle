@@ -7,7 +7,7 @@ from collections import defaultdict
 from typing import Collection, FrozenSet, Set, Optional
 from typing import List, Sequence, Dict, Iterator, Callable
 
-from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer
+from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer, Template
 from puzzicon.fill.state import FillState
 
 _log = logging.getLogger(__name__)
@@ -117,11 +117,10 @@ class Bank(object):
         unused: Iterator[BankItem] = self._explode(filter(Bank.not_already_used_predicate(state.used), matches))
         for bank_item in unused:
             legend_updates_ = answer.to_updates(bank_item)
-            def evaluator(candidate: WordTuple):
+            def evaluator(candidate: Template):
                 return this_bank.is_valid_candidate(state, candidate)
             new_answers: Optional[Dict[int, WordTuple]] = state.list_new_entries_using_updates(legend_updates_, answer_idx, True, evaluator)
             if new_answers is not None:
-                new_entries_dict: Dict[int, WordTuple] = dict()
                 new_entries_set: Set[WordTuple] = set()
                 has_dupes = False
                 for a_idx, new_entry in new_answers.items():
@@ -129,10 +128,9 @@ class Bank(object):
                     if new_entry in new_entries_set:
                         has_dupes = True
                         break
-                    new_entries_dict[a_idx] = new_entry
                     new_entries_set.add(new_entry)
                 if not has_dupes:
-                    yield Suggestion(legend_updates_, new_entries_dict)
+                    yield Suggestion(legend_updates_, new_answers)
 
     @staticmethod
     def not_already_used_predicate(already_used: Collection[str]) -> Callable[[BankItem], bool]:
@@ -140,8 +138,17 @@ class Bank(object):
             return entry.rendering not in already_used
         return not_already_used
 
-    def is_valid_candidate(self, state: FillState, candidate: WordTuple):
-        return candidate not in state.used and self.has_word(candidate)
+    def is_valid_candidate(self, state: FillState, candidate: Template):
+        answer = Answer.define(candidate)
+        count = self.count_filter(answer.pattern, uncountable=None)
+        if count is not None:  # if none, then allow it
+            if count <= 0:
+                return False
+        if candidate.is_complete():
+            # suppress inspection because complete Template acts as a WordTuple
+            # noinspection PyTypeChecker
+            return candidate not in state.used and self.has_word(candidate)
+        return True
 
     def has_word(self, entry: WordTuple):
         return entry in self.tableaus
