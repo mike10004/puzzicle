@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 import fnmatch
 import logging
-from typing import List, Tuple, Dict, Callable, Set, Iterable
+from typing import List, Tuple, Dict, Callable, Set, Iterable, NamedTuple
 import unidecode
 
 unicode_normalize = unidecode.unidecode
@@ -22,48 +22,74 @@ def _create_constant_callable(retval):
     return _constant
 
 
+_EMPTY_SET = frozenset()
 _CALLABLE_TRUE = _create_constant_callable(True)
 _CALLABLE_FALSE = _create_constant_callable(False)
-_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+_ALPHABET_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+_ALPHABET_NUMERIC = "0123456789"
+_ALPHABET_ALPHANUMERIC = _ALPHABET_ALPHA + _ALPHABET_NUMERIC
+_REGEX_NONCHARMATCH = {
+    'alpha': '[^A-Za-z]',
+    'numeric': '[^0-9]',
+    'alphanumeric': '[^A-Za-z0-9]',
+}
 
 
-def _contains_nonalphabet(letters):
+def get_alphabet(allowed: str) -> str:
+    if allowed == 'alpha':
+        return _ALPHABET_ALPHA
+    elif allowed == 'numeric':
+        return _ALPHABET_NUMERIC
+    elif allowed == 'alphanumeric':
+        return _ALPHABET_ALPHANUMERIC
+    raise ValueError(str(allowed))
+
+
+def get_regex_noncharmatch(allowed: str) -> str:
+    return _REGEX_NONCHARMATCH[allowed]
+
+
+def _contains_nonalphabet(letters, allowed):
     for l in letters:
-        if l not in _ALPHABET:
+        if l not in get_alphabet(allowed):
             return True
     return False
 
 
-class Puzzeme(tuple):
+class InvalidPuzzemeException(Exception):
+    pass
+
+class Puzzeme(NamedTuple):
 
     """Thing that might be an answer to a clue in a puzzle."""
 
-    canonical, renderings = None, None
+    canonical: str
+    renderings: Tuple[str, ...]
 
-    def __new__(cls, rendering: str, *args):
+    @staticmethod
+    def create(rendering: str, *args, **kwargs):
         renderings = [rendering]
         if args:
             renderings += list(args)
         renderings = tuple(map(str.strip, renderings))
         canonical = None
+        allowed = kwargs.get('allowed', 'alpha')
         for rendering in renderings:
             assert rendering, "lexeme rendering must contain non-whitespace"
-            normalized = Puzzeme.canonicalize(rendering)
+            normalized = Puzzeme.canonicalize(rendering, allowed=allowed)
             assert canonical is None or normalized == canonical, "all renderings must have same canonical form"
             canonical = normalized
-        assert canonical is not None
-        assert canonical, "canonical form of lexeme must contain non-whitespace: {}".format(repr(rendering)[:64])
-        items = [canonical] + list(renderings)
-        instance = super(Puzzeme, cls).__new__(cls, items)
-        instance.canonical = canonical
-        instance.renderings = renderings
-        return instance
+        if not canonical:
+            raise InvalidPuzzemeException("canonical form of lexeme must contain non-whitespace: {}".format(repr(rendering)[:64]))
+        return Puzzeme(canonical, tuple(renderings))
 
     @staticmethod
-    def canonicalize(rendering):
-        if _contains_nonalphabet(rendering):
+    def canonicalize(rendering: str, allowed: str='alpha', preserve: Set[str]=_EMPTY_SET) -> str:
+        if _contains_nonalphabet(rendering, allowed):
             rendering = unicode_normalize(rendering)
-        canonical = re.sub('[^A-Za-z]', '', rendering).strip().upper()
+        canonical = re.sub(get_regex_noncharmatch(allowed), '', rendering).strip()
+        if 'case' not in preserve:
+            canonical = canonical.upper()
         return canonical
 
     def stature(self):
@@ -136,7 +162,7 @@ def create_puzzeme_set(ifile: Iterable[str], intolerables=None):
     by_canonical = defaultdict(list)
     for rendering in ifile:
         try:
-            p = Puzzeme(rendering)
+            p = Puzzeme.create(rendering)
             by_canonical[p.canonical].append(p)
         except Exception as e:
             if intolerables is not None:
@@ -147,7 +173,7 @@ def create_puzzeme_set(ifile: Iterable[str], intolerables=None):
     for variants in by_canonical.values():
         assert len(variants) == sum([len(v.renderings) for v in variants])
         renderings = [variant.renderings[0] for variant in variants]
-        items.append(Puzzeme(*renderings))
+        items.append(Puzzeme.create(*renderings))
     return frozenset(items)
 
 
