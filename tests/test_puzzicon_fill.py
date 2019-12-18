@@ -9,8 +9,8 @@ from unittest import TestCase, SkipTest
 import puzzicon
 from puzzicon.fill import Answer
 from puzzicon.fill import FillState
-from puzzicon.fill import Filler
-from puzzicon.fill import Bank
+from puzzicon.fill import Template
+from puzzicon.fill import Pattern
 from puzzicon.fill import FillStateNode
 from puzzicon.fill import Suggestion
 from puzzicon.fill import FillListener, FirstCompleteListener, AllCompleteListener
@@ -32,6 +32,11 @@ def A(*args) -> Answer:
 
 T = A
 
+def template(*args) -> Template:
+    return Template(args)
+
+def pattern(*args) -> Pattern:
+    return Pattern(args)
 
 def map_all(templates: Sequence[int], legend: Sequence[str]) -> List[Answer]:
     def get_or_default(idx: int):
@@ -124,15 +129,25 @@ class FillStateTest(TestCase):
         self.assertEqual(4, state.num_incomplete)
 
     def test_advance_basic(self):
-        grid = GridModel.build("____")
+        grid = GridModel.build("____")  # 2x2
         state1 = FillState.from_grid(grid)
         self.assertEqual(4, state1.num_incomplete)
+        self.assertEqual(Answer.define((0, 2)), state1.answers[1], "precondition")
+        self.assertEqual(Answer.define((1, 3)), state1.answers[2], "precondition")
         state2 = state1.advance_unchecked(Suggestion({0: 'a', 1: 'b'}, {0: WordTuple('ab')}))
         self.assertIs(state1.crosses, state2.crosses)
         self.assertNotEqual(state1, state2)
         self.assertSetEqual({'ab'}, set(Render.filled(state2)))
         self.assertEqual(3, state2.num_incomplete)
         self.assertEqual(Answer.define('ab'), state2.answers[0], "answer 0 change expected")
+        self.assertEqual(Answer.define(('a', 2)), state2.answers[1], "answer 1 change expected")
+        self.assertEqual(Answer.define(('b', 3)), state2.answers[2], "answer 1 change expected")
+        self.assertSetEqual({
+            Answer.define(('a', 'b')),
+            Answer.define(('a', 2)),
+            Answer.define(('b', 3)),
+            Answer.define((2, 3)),
+        }, set(state2.answers), "expect crossing answer to change")
 
     def test_advance_additional_entries_added(self):
         # noinspection PyTypeChecker

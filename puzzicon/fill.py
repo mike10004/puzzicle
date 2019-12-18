@@ -89,7 +89,21 @@ class Answer(NamedTuple):
                 return False
         return True
 
-    def render_after(self, legend_updates: Dict[int, str]) -> Union[Pattern, WordTuple]:
+    def render_content(self, legend_updates: Dict[int, str]) -> Union[Template, WordTuple]:
+        num_unknown = 0
+        letters = []
+        for spot in self.content:
+            if isinstance(spot, int):
+                val = legend_updates.get(spot, None)
+                num_unknown += (0 if val is None else 1)
+                if val is None:
+                    val = spot
+                letters.append(val)
+            else:
+                letters.append(spot)
+        return WordTuple(letters) if num_unknown == 0 else Template(letters)
+
+    def render_pattern(self, legend_updates: Dict[int, str]) -> Union[Pattern, WordTuple]:
         num_unknown = 0
         letters = []
         for spot in self.content:
@@ -163,15 +177,25 @@ class FillState(NamedTuple):
         answers = list(self.answers)
         used = list(self.used)  # some elements may go from None -> str
         num_incomplete = self.num_incomplete  # decreases by number of new strings in 'used'
+        newly_defined_answer_indexes = set()
         for a_idx in suggestion.new_entries:
             answer = self.answers[a_idx]
             # is this always true based on how we get the Suggestion in the first place?
             if not answer.is_all_defined() and answer.is_all_defined_after(suggestion.legend_updates):
-                wtuple: WordTuple = answer.render_after(suggestion.legend_updates)
-                answers[a_idx] = Answer.define(wtuple)
-                rendering = ''.join(wtuple)
-                used[a_idx] = rendering
-                num_incomplete -= 1
+                    wtuple: WordTuple = answer.render_content(suggestion.legend_updates)
+                    answers[a_idx] = Answer.define(wtuple)
+                    newly_defined_answer_indexes.add(a_idx)
+                    rendering = ''.join(wtuple)
+                    used[a_idx] = rendering
+                    num_incomplete -= 1
+        for grid_idx in suggestion.legend_updates:
+            crossing_answer_indexes = self.crosses[grid_idx]
+            pass
+            for a_idx in crossing_answer_indexes:
+                pass
+                if a_idx not in newly_defined_answer_indexes:
+                    wtuple: WordTuple = answers[a_idx].render_content(suggestion.legend_updates)
+                    answers[a_idx] = Answer.define(wtuple)
         if num_incomplete == self.num_incomplete:
             # avoid re-tupling used list if nothing changed
             return FillState(tuple(answers), self.crosses, self.used, num_incomplete)
@@ -250,7 +274,7 @@ class FillState(NamedTuple):
                 if include_template_idx or (a_idx != template_idx):
                     answer: Answer = self.answers[a_idx]
                     if answer.is_all_defined_after(legend_updates):
-                        another_entry = answer.render_after(legend_updates)
+                        another_entry = answer.render_content(legend_updates)
                         if evaluator is not None and (not evaluator(another_entry)):
                             return None
                         # because render_after returns an effective WordTuple when is_all_defined_after returns True,
@@ -276,11 +300,16 @@ def _patterns(entry: WordTuple) -> List[Pattern]:
     return patterns
 
 
-class Bank(NamedTuple):
+class Bank(object):
 
-    deposits: FrozenSet[BankItem]
-    tableaus: FrozenSet[WordTuple]
-    by_pattern: Dict[Pattern, List[BankItem]] = {}
+    def __init__(self, deposits: FrozenSet[BankItem], tableaus: FrozenSet[WordTuple], by_pattern: Dict[Pattern, List[BankItem]], debug:bool=True):
+        assert isinstance(deposits, frozenset)
+        self.deposits = deposits
+        assert isinstance(tableaus, frozenset)
+        self.tableaus = tableaus
+        assert isinstance(by_pattern, dict)
+        self.by_pattern = by_pattern
+        self.debug = debug
 
     @staticmethod
     def with_registry(entries: Sequence[str], pattern_registry_cap=9):
@@ -292,6 +321,8 @@ class Bank(NamedTuple):
                 patterns = _patterns(entry.tableau)
                 for pattern in patterns:
                     by_pattern[pattern].append(entry)
+        # for pattern_list in by_pattern.values():
+        #     pattern_list.sort()
         return Bank(deposits, tableaus, by_pattern)
 
     @staticmethod
@@ -315,15 +346,22 @@ class Bank(NamedTuple):
             # This will happen either because (a) zero words correspond to the pattern, or (b) the pattern
             # was not registered because its length is above the registry cap
             # TODO keep track of cap on instantiation and return empty set if entry length is under the cap
-            return filter(lambda entry: Bank.matches(entry, pattern), self)
+            def must_match(entry: BankItem):
+                return Bank.matches(entry, pattern)
+            return filter(must_match, self.deposits)
+
+    def _explode(self, iterator):
+        if self.debug:
+            return list(iterator)
+        return iterator
 
     def suggest_updates(self, state: FillState, template_idx: int) -> Iterator[Suggestion]:
         this_bank = self
         answer: Answer = state.answers[template_idx]
         pattern = answer.pattern
-        matches: Iterator[BankItem] = self.filter(pattern)
-        unused: Iterator[BankItem] = filter(Bank.not_already_used_predicate(state.used), matches)
-        updates_iter = map(lambda entry: state.to_legend_updates_dict(entry, template_idx), unused)
+        matches: Iterator[BankItem] = self._explode(self.filter(pattern))
+        unused: Iterator[BankItem] = self._explode(filter(Bank.not_already_used_predicate(state.used), matches))
+        updates_iter = self._explode(map(lambda entry: state.to_legend_updates_dict(entry, template_idx), unused))
         for legend_updates_ in updates_iter:
             def evaluator(entry: WordTuple):
                 return this_bank.is_valid_new_entry(state, entry)

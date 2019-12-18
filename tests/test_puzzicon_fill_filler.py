@@ -68,6 +68,7 @@ class FillerTest(TestCase):
 
     def _do_fill_2x2(self, grid: GridModel, listener: FillListener) -> FillResult:
         wordlist = _WORDS_2x2 + ['XY', 'GH', 'IJ']
+        #wordlist = ['XY'] + _WORDS_2x2
         print("using words:", wordlist)
         bank = tests.create_bank(*wordlist)
         return self._do_fill(grid, listener, bank)
@@ -131,7 +132,6 @@ class FillerTest(TestCase):
         self.assertIsNone(result)
         self.assertEqual(threshold, listener.count)
 
-    @unittest.skip("until the smaller grids pass")
     def test_fill_3x3_first(self):
         grid = GridModel.build('__.___.__')
         fill_result = self._do_fill_3x3(grid, FirstCompleteListener(100000))
@@ -139,7 +139,6 @@ class FillerTest(TestCase):
         # noinspection PyTypeChecker
         self._check_3x3_filled(filled)
 
-    @unittest.skip("until the smaller grids pass")
     def test_fill_5x5_first(self):
         grid = GridModel.build('.._____________________..')
         wordlist = list(_WORDS_5x5) + list(_NONWORDS_5x5)
