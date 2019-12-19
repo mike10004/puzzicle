@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 import fnmatch
 import logging
-from typing import List, Tuple, Dict, Callable, Set, Iterable, NamedTuple
+from typing import List, Tuple, Dict, Callable, Set, Iterable, NamedTuple, FrozenSet
 import unidecode
 
 unicode_normalize = unidecode.unidecode
@@ -64,7 +64,7 @@ class Puzzeme(NamedTuple):
     """Thing that might be an answer to a clue in a puzzle."""
 
     canonical: str
-    renderings: Tuple[str, ...]
+    renderings: FrozenSet[str]
 
     @staticmethod
     def create(rendering: str, *args, **kwargs):
@@ -81,7 +81,7 @@ class Puzzeme(NamedTuple):
             canonical = normalized
         if not canonical:
             raise InvalidPuzzemeException("canonical form of lexeme must contain non-whitespace: {}".format(repr(rendering)[:64]))
-        return Puzzeme(canonical, tuple(renderings))
+        return Puzzeme(canonical, frozenset(renderings))
 
     @staticmethod
     def canonicalize(rendering: str, allowed: str='alpha', preserve: Set[str]=_EMPTY_SET) -> str:
@@ -159,7 +159,7 @@ class Puzzarian(object):
 
 
 def create_puzzeme_set(ifile: Iterable[str], intolerables=None):
-    by_canonical = defaultdict(list)
+    by_canonical: Dict[str, List[Puzzeme]] = defaultdict(list)
     for rendering in ifile:
         try:
             p = Puzzeme.create(rendering)
@@ -172,7 +172,9 @@ def create_puzzeme_set(ifile: Iterable[str], intolerables=None):
     items = []
     for variants in by_canonical.values():
         assert len(variants) == sum([len(v.renderings) for v in variants])
-        renderings = [variant.renderings[0] for variant in variants]
+        for variant in variants:
+            assert len(variant.renderings) == 1
+        renderings = [list(variant.renderings)[0] for variant in variants]
         items.append(Puzzeme.create(*renderings))
     return frozenset(items)
 

@@ -25,7 +25,9 @@ def A(*args) -> Answer:
     """Create a template with the argument indices"""
     return Answer.define(args)
 
-T = A
+# noinspection PyPep8Naming
+def A2(s: str) -> Answer:
+    return Answer.define(s)
 
 def template(*args) -> Template:
     return Template(args)
@@ -98,21 +100,28 @@ class TemplateTest(TestCase):
 
 class AnswerTest(TestCase):
 
-    def test_create(self):
+    def test_define(self):
         t = Answer.define([0, 1, 2])
         self.assertIsInstance(t, tuple)
+        self.assertIsInstance(t, Answer)
         self.assertTupleEqual((0, 1, 2), t.content)
         self.assertTupleEqual((None, None, None), t.pattern)
         self.assertEqual(0, t.strength, "strength")
 
-    def test_create2(self):
+    def test_define_str(self):
+        a = Answer.define('abc')
+        self.assertIsInstance(a, Answer)
+        self.assertTupleEqual(('a', 'b', 'c'), a.content)
+        self.assertTupleEqual(('a', 'b', 'c'), a.pattern)
+
+    def test_define_2(self):
         t = Answer.define([0, 'b', 2])
         self.assertTupleEqual((0, 'b', 2), t.content)
         self.assertTupleEqual((None, 'b', None), t.pattern)
         self.assertEqual(1, t.strength, "strength")
 
-    def test_create_shortcut(self):
-        t = T(0, 1, 2)
+    def test_define_shortcut(self):
+        t = A(0, 1, 2)
         self.assertIsInstance(t, Answer)
         self.assertEqual(0, t.strength, "strength")
 
@@ -241,15 +250,15 @@ class FillStateTest(TestCase):
         self.assertListEqual([2, 4], unfilled)
 
     def test_list_new_entries_using_updates_exclude(self):
-        templates: Tuple[Answer, ...] = (T('A', 'B'), T(2,3), T('A', 2), T('B', 3))
+        templates: Tuple[Answer, ...] = (A('A', 'B'), A(2,3), A('A', 2), A('B', 3))
         state = FillState.from_answers(templates, (2, 2))
         actual = state.list_new_entries_using_updates({2:'C', 3:'D'}, 1, False)
-        self.assertDictEqual({2: WordTuple('AC'), 3: WordTuple('BD')}, actual)
+        self.assertDictEqual({2: A2('AC'), 3: A2('BD')}, actual)
 
     def test_list_new_entries_using_updates_include(self):
-        templates: Tuple[Answer, ...] = (T('A', 'B'), T(2,3), T('A', 2), T('B', 3))
+        templates: Tuple[Answer, ...] = (A('A', 'B'), A(2,3), A('A', 2), A('B', 3))
         state = FillState.from_answers(templates, (2, 2))
         actual = state.list_new_entries_using_updates({2:'C', 3:'D'}, 1, True)
-        self.assertDictEqual({2: WordTuple('AC'), 3: WordTuple('BD'), 1: WordTuple('CD')}, actual)
+        self.assertDictEqual({2: A2('AC'), 3: A2('BD'), 1: A2('CD')}, actual)
 
 

@@ -6,6 +6,16 @@ import random
 import examples
 from puzzicon.grid import GridModel
 
+_GRID_TEXT =  (".___.___." +
+               "_________" +
+               "_________" +
+               "___._____" +
+               ".___.___." +
+               "_____.___" +
+               "_________" +
+               "_________" +
+               ".___.___.")
+
 _WORDS_9x9 = list(map(str.upper, ["act",
 "are",
 "snootiest",

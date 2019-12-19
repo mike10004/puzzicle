@@ -27,10 +27,21 @@ tests.configure_logging()
 
 # noinspection PyPep8Naming
 def A(*args) -> Answer:
-    """Create a template with the argument indices"""
+    """Define an Answer object"""
     return Answer.define(args)
 
-T = A
+# noinspection PyPep8Naming
+def A2(s) -> Answer:
+    return Answer.define(s)
+
+
+# noinspection PyPep8Naming
+def A_from_template(content: Template) -> 'Answer':
+    pattern = Pattern([None if isinstance(c, int) else c for c in content])
+    strength = content.strength()
+    return Answer(content, pattern, strength)
+
+
 B = BankItem.from_word
 W = WordTuple
 
@@ -99,18 +110,18 @@ class BankTest(TestCase):
     def test_suggest_updates_1(self):
         words = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
         bank = create_bank(*words)
-        answers: Tuple[Answer, ...] = (T(0,1), T(2,3), T(0,2), T(1,3))
+        answers: Tuple[Answer, ...] = (A(0,1), A(2,3), A(0,2), A(1,3))
         state = FillState.from_answers(answers, (2, 2))
         updates = list(bank.suggest_updates(state, 0))
         actual = collect_new_entries(updates)
-        self.assertSetEqual({W('AB'), W('AC'), W('JJ')}, actual)
+        self.assertSetEqual({A2('AB'), A2('AC'), A2('JJ')}, actual)
 
     def test_is_valid_candidate(self):
         bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
         state = FillState.from_answers(tuple(), (0, 0))
-        self.assertTrue(bank.is_valid_candidate(state, Template('XY')))
-        self.assertFalse(bank.is_valid_candidate(state, Template('MY')))
-        self.assertFalse(bank.is_valid_candidate(state, Template(('M', None))))
+        self.assertTrue(bank.is_valid_candidate(state, A_from_template(Template('XY'))))
+        self.assertFalse(bank.is_valid_candidate(state, A_from_template(Template('MY'))))
+        self.assertFalse(bank.is_valid_candidate(state, A_from_template(Template(('M', None)))))
 
     def test_not_already_used_predicate(self):
         already_used = {'ABC'}
@@ -139,20 +150,20 @@ class BankTest(TestCase):
         # AB
         # __
 
-        templates: Tuple[Answer, ...] = (T('A', 'B'), T(2,3), T('A',2), T('B',3))
+        templates: Tuple[Answer, ...] = (A('A', 'B'), A(2,3), A('A',2), A('B',3))
         state = FillState.from_answers(templates, (2, 2))
         actual = collect_new_entries(bank.suggest_updates(state, 2))
-        self.assertSetEqual({W('AC'), W('AX')}, actual)
+        self.assertSetEqual({A2('AC'), A2('AX')}, actual)
 
     def test_suggest_updates_2(self):
         words_2chars = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
         words_3chars = ['TAB', 'QCD', 'YAC', 'CBD', 'JXY', 'TJJ', 'NOP']
         all_words = words_2chars + words_3chars
         bank = create_bank(*all_words)
-        templates = (T(0,1), T(2,3), T(0,2), T(1,3))
+        templates = (A(0,1), A(2,3), A(0,2), A(1,3))
         state = FillState.from_templates(templates, (2, 2))
         actual = collect_new_entries(bank.suggest_updates(state, 0))
-        self.assertSetEqual({W('AB'), W('AC'), W('JJ')}, actual)
+        self.assertSetEqual({A2('AB'), A2('AC'), A2('JJ')}, actual)
 
     def test_filter(self):
         bank = create_bank('ABC', 'DEF', 'ABX', 'G', 'HI', 'ACC')

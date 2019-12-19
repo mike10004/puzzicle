@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import puzzicon.grid
-from collections import defaultdict
-from puzzicon.grid import GridModel
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, Any
-from typing import NamedTuple, Collection, FrozenSet, Union, Iterable
 import logging
-from puzzicon.fill import Answer, Pattern, WordTuple, Suggestion, Template
+from collections import defaultdict
+from typing import NamedTuple
+from typing import Tuple, List, Dict, Optional, Iterator, Callable
+
+import puzzicon.grid
+from puzzicon.fill import Answer, WordTuple, Suggestion
+from puzzicon.grid import GridModel
 
 _log = logging.getLogger(__name__)
 
@@ -30,7 +31,9 @@ class FillState(NamedTuple):
         for a_idx, answer in enumerate(answers):
             for spot in filter(lambda s: isinstance(s, int), answer.content):
                 crosses_dict[spot].append(a_idx)
-        crosses = [None] * (grid_size[0] * grid_size[1])
+        # List elements are not yet of the correct type, but they will be eventually
+        # noinspection PyTypeChecker
+        crosses: List[Tuple[int, ...]] = [None] * (grid_size[0] * grid_size[1])
         for grid_idx in crosses_dict:
             crosses[grid_idx] = tuple(crosses_dict[grid_idx])
         for i in range(len(crosses)):
@@ -113,31 +116,36 @@ class FillState(NamedTuple):
         return newline.join(rows)
 
     def list_new_entries_using_updates(self, legend_updates: Dict[int, str],
-                                       template_idx: int,
-                                       include_template_idx: bool,
-                                       evaluator: Optional[Callable[[Template], bool]]=None) -> Optional[Dict[int, WordTuple]]:
+                                       answer_idx: int,
+                                       include_answer_idx: bool,
+                                       evaluator: Optional[Callable[[Answer], bool]]=None) -> Optional[Dict[int, Answer]]:
         """
-        Return a dictionary mapping answer indexes to word-tuples where the
-        word-tuple becomes completed by the given legend updates.
+        Return a dictionary mapping answer indexes to new complete answers.
 
         The answer corresponding to the given answer index is included
         in the set of updates only if include_template_idx is true.
 
-        If an evaluator is provided, it must accept a word-tuple as an argument and
+        If an evaluator is provided, it must accept an Answer parameter argument and
         return False if the word is not valid. This aborts the process of listing
         new entries and returns early with None.
+
+        @param legend_updates: map of grid index to cell content
+        @param answer_idx: the answer index
+        @param include_answer_idx: true iff Answer corresponding to answer_idx is to be included
+        @param evaluator: callable accepting an Answer object
+        @return: map of answer index to new Answer object
         """
         # noinspection PyTypeChecker
-        updated_answers: Dict[int, WordTuple] = {}
+        updated_answers: Dict[int, Answer] = {}
         for grid_index in legend_updates:
             crossing_answer_indexes = self.crosses[grid_index]
             for a_idx in crossing_answer_indexes:
-                if include_template_idx or (a_idx != template_idx):
+                if include_answer_idx or (a_idx != answer_idx):
                     answer: Answer = self.answers[a_idx]
-                    another_entry: Template = answer.render_content(legend_updates)
+                    another_entry: Answer = answer.update(legend_updates)
                     if evaluator is not None and (not evaluator(another_entry)):
                         return None
-                    if another_entry.is_complete():
+                    if another_entry.content.is_complete():
                         # a complete Template is effectively a WordTuple, so we
                         # can ignore this type mismatch.
                         # noinspection PyTypeChecker

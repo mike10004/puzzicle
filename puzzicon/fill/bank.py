@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import hashlib
 import itertools
 import logging
 import pickle
+import os.path
 from collections import defaultdict
-from typing import Collection, FrozenSet, Set, Optional, BinaryIO
+from typing import Collection, FrozenSet, Set, Optional, BinaryIO, Iterable
 from typing import List, Sequence, Dict, Iterator, Callable
 
-from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer, Template
+import puzzicon
+from puzzicon import Puzzeme
+from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer
 from puzzicon.fill.state import FillState
 
 _log = logging.getLogger(__name__)
 _EMPTY_SET = frozenset()
 _DEFAULT_MAX_PATTERN_LEN = 9
+_FILENAME_SAFE_CHARS = 'QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1234567890_'
 
 def _powerset(iterable):
     """powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"""
@@ -47,7 +52,7 @@ class Bank(object):
         return len(self.deposits)
 
     @staticmethod
-    def with_registry(entries: Sequence[str], pattern_registry_cap=_DEFAULT_MAX_PATTERN_LEN, debug: bool=False):
+    def with_registry(entries: Iterable[str], pattern_registry_cap=_DEFAULT_MAX_PATTERN_LEN, debug: bool=False):
         deposits = frozenset([BankItem.from_word(entry) for entry in entries])
         tableaus = frozenset([item.tableau for item in deposits])
         by_pattern = defaultdict(list)
@@ -122,7 +127,7 @@ class Bank(object):
         unused: Iterator[BankItem] = self._explode(filter(Bank.not_already_used_predicate(state.used), matches))
         for bank_item in unused:
             legend_updates_ = answer.to_updates(bank_item)
-            def evaluator(candidate: Template):
+            def evaluator(candidate: Answer):
                 return this_bank.is_valid_candidate(state, candidate)
             new_answers: Optional[Dict[int, WordTuple]] = state.list_new_entries_using_updates(legend_updates_, answer_idx, True, evaluator)
             if new_answers is not None:
@@ -143,16 +148,15 @@ class Bank(object):
             return entry.rendering not in already_used
         return not_already_used
 
-    def is_valid_candidate(self, state: FillState, candidate: Template):
-        answer = Answer.define(candidate)
-        count = self.count_filter(answer.pattern, uncountable=None)
+    def is_valid_candidate(self, state: FillState, candidate: Answer):
+        count = self.count_filter(candidate.pattern, uncountable=None)
         if count is not None:  # if none, then allow it
             if count <= 0:
                 return False
-        if candidate.is_complete():
+        if candidate.content.is_complete():
             # suppress inspection because complete Template acts as a WordTuple
             # noinspection PyTypeChecker
-            return candidate not in state.used and self.has_word(candidate)
+            return candidate.content not in state.used and self.has_word(candidate.content)
         return True
 
     def has_word(self, entry: WordTuple):
@@ -162,6 +166,7 @@ class Bank(object):
         return "Bank<num_words={},num_patterns_registered={}>".format(len(self.deposits), len(self.by_pattern))
 
 
+# noinspection PyMethodMayBeStatic
 class BankSerializer(object):
 
     def serialize(self, bank: Bank, ofile: BinaryIO):
@@ -177,3 +182,63 @@ class BankSerializer(object):
     def deserialize_from_file(self, pathname: str) -> Bank:
         with open(pathname, 'rb') as ifile:
             return self.deserialize(ifile)
+
+
+_DEFAULT_WORDLIST_PATHNAME = '/usr/share/dict/words'
+
+
+# noinspection PyPep8Naming
+def _CANONICAL_XFORM(puzzeme_set: Set[Puzzeme]):
+    return [p.canonical for p in puzzeme_set]
+
+class BankLoader(object):
+
+    def __init__(self, cache_dir: Optional[str]=None, tag: Optional[str]=None, max_word_length: Optional[int]=None, puzzeme_set_transform: Callable[[Set[Puzzeme]], Set[str]]=_CANONICAL_XFORM):
+        self.cache_dir = cache_dir
+        self.tag = tag
+        self.max_word_length = max_word_length
+        self.puzzeme_set_transform = puzzeme_set_transform
+        self.debug_bank = False
+
+    @staticmethod
+    def get_default_cache_dir():
+        return os.path.join(os.getenv('HOME'), '.local', 'share', 'puzzicon', 'wordbank')
+
+    def _construct_filename(self, wordlist_pathname) -> str:
+        tag = str(self.tag or 'default')
+        tag = ''.join([ch if ch in _FILENAME_SAFE_CHARS else '_' for ch in tag])
+        h = hashlib.sha256()
+        with open(wordlist_pathname, 'rb') as ifile:
+            h.update(ifile.read())
+        basename = h.hexdigest()
+        return "bank-{}-{}.pickle".format(tag, basename)
+
+    def load_fresh(self, wordlist_pathname=_DEFAULT_WORDLIST_PATHNAME):
+        puzzemes = puzzicon.read_puzzeme_set(wordlist_pathname)
+        if self.max_word_length is not None:
+            puzzemes = filter(lambda p: len(p.canonical) <= self.max_word_length, puzzemes)
+        strings = self.puzzeme_set_transform(puzzemes)
+        bank = Bank.with_registry(strings, debug=self.debug_bank)
+        serializer = BankSerializer()
+        if self.cache_dir is not None:
+            bank_pathname = self.get_cached_bank_pathname(wordlist_pathname)
+            os.makedirs(os.path.dirname(bank_pathname), exist_ok=True)
+            serializer.serialize_to_file(bank, bank_pathname)
+            print("bank written to", bank_pathname)
+        return bank
+
+    def get_cached_bank_pathname(self, wordlist_pathname: str) -> str:
+        assert self.cache_dir, "cache directory must be defined for this loader"
+        return os.path.join(self.cache_dir, self._construct_filename(wordlist_pathname))
+
+    def load(self, wordlist_pathname=_DEFAULT_WORDLIST_PATHNAME):
+        if self.cache_dir is not None:
+            cached_bank_pathname = self.get_cached_bank_pathname(wordlist_pathname)
+            try:
+                serializer = BankSerializer()
+                bank = serializer.deserialize_from_file(cached_bank_pathname)
+                _log.debug("bank read from %s", cached_bank_pathname)
+                return bank
+            except FileNotFoundError:
+                pass
+        return self.load_fresh(wordlist_pathname)

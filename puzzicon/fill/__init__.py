@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, Any
-from typing import NamedTuple, Collection, FrozenSet, Union, Iterable
 import logging
-
+from typing import NamedTuple, Collection, FrozenSet, Union
+from typing import Tuple, Sequence, Dict, Optional
 
 _log = logging.getLogger(__name__)
 _VALUE = 1
@@ -43,8 +42,11 @@ class Template(Tuple[Union[int, str], ...]):
         instance._strength = strength
         return instance
 
-    def length(self):
+    def length(self) -> int:
         return len(self)
+
+    def strength(self) -> int:
+        return self._strength
 
     def is_complete(self) -> bool:
         return self._strength == len(self)
@@ -107,6 +109,31 @@ class Answer(NamedTuple):
             if isinstance(spot, int) and not spot in legend_updates:
                 return False
         return True
+
+    def update(self, legend_updates: Dict[int, str]) -> 'Answer':
+        num_unknown = 0
+        num_updates = 0
+        letters = []
+        pattern_src = []
+        for spot in self.content:
+            if isinstance(spot, int):
+                p_val = legend_updates.get(spot, None)
+                if p_val is None:
+                    val = spot
+                    num_unknown += 1
+                else:
+                    val = p_val
+                    num_updates += 1
+                letters.append(val)
+                pattern_src.append(p_val)
+            else:
+                letters.append(spot)
+                pattern_src.append(spot)
+        content = Template(letters)
+        pattern = Pattern(pattern_src)
+        strength = pattern.length() - num_unknown
+        return Answer(content, pattern, strength)
+
 
     def render_content(self, legend_updates: Dict[int, str]) -> Union[Template, WordTuple]:
         """
