@@ -185,7 +185,7 @@ class FillStateTest(TestCase):
         self.assertEqual(4, state1.num_incomplete)
         self.assertEqual(Answer.define((0, 2)), state1.answers[1], "precondition")
         self.assertEqual(Answer.define((1, 3)), state1.answers[2], "precondition")
-        state2 = state1.advance_unchecked(Suggestion({0: 'a', 1: 'b'}, {0: WordTuple('ab')}))
+        state2 = state1.advance_unchecked(Suggestion({0: 'a', 1: 'b'}, {0: A2('ab')}))
         self.assertIs(state1.crosses, state2.crosses)
         self.assertNotEqual(state1, state2)
         self.assertSetEqual({'ab'}, set(Render.filled(state2)))
@@ -203,14 +203,14 @@ class FillStateTest(TestCase):
     def test_advance_additional_entries_added(self):
         # noinspection PyTypeChecker
         state2 = FillState.from_answers((A('a','b'),A(2,3),A('a',2),A('b',3)), (2, 2))
-        sugg = Suggestion({2: 'c', 3: 'd'}, {1: WordTuple('cd'), 2: WordTuple('ac'), 3: WordTuple('bd')})
+        sugg = Suggestion({2: 'c', 3: 'd'}, {1: A2('cd'), 2: A2('ac'), 3: A2('bd')})
         state3 = state2.advance_unchecked(sugg)
         self.assertSetEqual({'ab', 'cd', 'ac', 'bd'}, set(Render.filled(state3)))
 
     def test_advance_additional_entries_added_incorrect(self):
         # noinspection PyTypeChecker
         state2 = FillState.from_answers((A('a', 'c'),A(2,3),A('a',2),A('c',3)), (2, 2))
-        sugg = Suggestion({2: 'c', 3: 'd'}, {1: WordTuple('cd'), 2: WordTuple('ac'), 3: WordTuple('cd')})
+        sugg = Suggestion({2: 'c', 3: 'd'}, {1: A2('cd'), 2: A2('ac'), 3: A2('cd')})
         state3 = state2.advance_unchecked(sugg)
         self.assertSetEqual({'ac', 'cd'}, set(Render.filled(state3)))
 

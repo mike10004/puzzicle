@@ -12,7 +12,7 @@ from typing import List, Sequence, Dict, Iterator, Callable
 
 import puzzicon
 from puzzicon import Puzzeme
-from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer
+from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer, Template
 from puzzicon.fill.state import FillState
 
 _log = logging.getLogger(__name__)
@@ -129,16 +129,16 @@ class Bank(object):
             legend_updates_ = answer.to_updates(bank_item)
             def evaluator(candidate: Answer):
                 return this_bank.is_valid_candidate(state, candidate)
-            new_answers: Optional[Dict[int, WordTuple]] = state.list_new_entries_using_updates(legend_updates_, answer_idx, True, evaluator)
+            new_answers: Optional[Dict[int, Answer]] = state.list_new_entries_using_updates(legend_updates_, answer_idx, True, evaluator)
             if new_answers is not None:
-                new_entries_set: Set[WordTuple] = set()
+                new_entries_set: Set[Template] = set()
                 has_dupes = False
                 for a_idx, new_entry in new_answers.items():
                     # test if new batch of entries contains duplicates
-                    if new_entry in new_entries_set:
+                    if new_entry.content in new_entries_set:
                         has_dupes = True
                         break
-                    new_entries_set.add(new_entry)
+                    new_entries_set.add(new_entry.content)
                 if not has_dupes:
                     yield Suggestion(legend_updates_, new_answers)
 

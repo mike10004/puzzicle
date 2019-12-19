@@ -185,13 +185,14 @@ def _sort_and_check_duplicates(items: list) -> bool:
 
 class Suggestion(object):
 
-    def __init__(self, legend_updates: Dict[int, str], new_entries: Dict[int, WordTuple]):
+    def __init__(self, legend_updates: Dict[int, str], new_entries: Dict[int, Answer]):
         """
         Construct an instance.
         @param legend_updates: mapping of grid index to square value
         @param new_entries: mapping of answer index to bank words
         """
         self.legend_updates = legend_updates
+        assert legend_updates, "suggestion must contain legend updates"
         self.new_entries = new_entries
         assert new_entries, "suggestion must contain at least one new entry"
 

@@ -7,7 +7,7 @@ from typing import NamedTuple
 from typing import Tuple, List, Dict, Optional, Iterator, Callable
 
 import puzzicon.grid
-from puzzicon.fill import Answer, WordTuple, Suggestion
+from puzzicon.fill import Answer, Suggestion
 from puzzicon.grid import GridModel
 
 _log = logging.getLogger(__name__)
@@ -55,14 +55,13 @@ class FillState(NamedTuple):
         used = list(self.used)  # some elements may go from None -> str
         num_incomplete = self.num_incomplete  # decreases by number of new strings in 'used'
         newly_defined_answer_indexes = set()
-        for a_idx in suggestion.new_entries:
+        for a_idx, new_answer in suggestion.new_entries.items():
             answer = self.answers[a_idx]
             # is this always true based on how we get the Suggestion in the first place?
-            if not answer.is_all_defined() and answer.is_all_defined_after(suggestion.legend_updates):
-                    wtuple: WordTuple = answer.render_content(suggestion.legend_updates)
-                    answers[a_idx] = Answer.define(wtuple)
+            if not answer.is_all_defined() and new_answer.is_all_defined():
+                    answers[a_idx] = new_answer
                     newly_defined_answer_indexes.add(a_idx)
-                    rendering = ''.join(wtuple)
+                    rendering = ''.join(new_answer.content)
                     used[a_idx] = rendering
                     num_incomplete -= 1
         for grid_idx in suggestion.legend_updates:
@@ -71,8 +70,8 @@ class FillState(NamedTuple):
             for a_idx in crossing_answer_indexes:
                 pass
                 if a_idx not in newly_defined_answer_indexes:
-                    wtuple: WordTuple = answers[a_idx].render_content(suggestion.legend_updates)
-                    answers[a_idx] = Answer.define(wtuple)
+                    changed_answer = answers[a_idx].update(suggestion.legend_updates)
+                    answers[a_idx] = changed_answer
         if num_incomplete == self.num_incomplete:
             # avoid re-tupling used list if nothing changed
             return FillState(tuple(answers), self.crosses, self.used, num_incomplete)
