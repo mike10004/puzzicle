@@ -13,6 +13,14 @@ from puzzicon.grid import GridModel
 _log = logging.getLogger(__name__)
 
 
+class AnswerChangeset(Dict[int, Answer]):
+
+    rank: float = None
+
+
+_EMPTY_ANSWER_CHANGESET = AnswerChangeset()
+_EMPTY_ANSWER_CHANGESET.rank = 0.0
+
 class FillState(NamedTuple):
 
     answers: Tuple[Answer, ...]
@@ -117,7 +125,7 @@ class FillState(NamedTuple):
     def list_new_entries_using_updates(self, legend_updates: Dict[int, str],
                                        answer_idx: int,
                                        include_answer_idx: bool,
-                                       evaluator: Optional[Callable[[Answer], bool]]=None) -> Optional[Dict[int, Answer]]:
+                                       evaluator: Optional[Callable[[Answer], int]]=None) -> AnswerChangeset:
         """
         Return a dictionary mapping answer indexes to new complete answers.
 
@@ -135,20 +143,27 @@ class FillState(NamedTuple):
         @return: map of answer index to new Answer object
         """
         # noinspection PyTypeChecker
-        updated_answers: Dict[int, Answer] = {}
+        updated_answers = AnswerChangeset()
+        overall_rank = 0
+        num_candidates = 0
         for grid_index in legend_updates:
             crossing_answer_indexes = self.crosses[grid_index]
             for a_idx in crossing_answer_indexes:
                 if include_answer_idx or (a_idx != answer_idx):
                     answer: Answer = self.answers[a_idx]
                     another_entry: Answer = answer.update(legend_updates)
-                    if evaluator is not None and (not evaluator(another_entry)):
-                        return None
+                    num_candidates += 1
+                    if evaluator is not None:
+                        rank = evaluator(another_entry)
+                        if rank is not None and rank == 0:
+                            return _EMPTY_ANSWER_CHANGESET
+                        overall_rank += rank
                     if another_entry.content.is_complete():
                         # a complete Template is effectively a WordTuple, so we
                         # can ignore this type mismatch.
                         # noinspection PyTypeChecker
                         updated_answers[a_idx] = another_entry
+        updated_answers.rank = (overall_rank / num_candidates)
         return updated_answers
 
 

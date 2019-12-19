@@ -13,7 +13,7 @@ from typing import List, Dict, Iterator, Callable
 import puzzicon
 from puzzicon import Puzzeme
 from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer, Template
-from puzzicon.fill.state import FillState
+from puzzicon.fill.state import FillState, AnswerChangeset
 
 _log = logging.getLogger(__name__)
 _EMPTY_SET = frozenset()
@@ -125,12 +125,13 @@ class Bank(object):
         answer: Answer = state.answers[answer_idx]
         matches: Iterator[BankItem] = self._explode(self.filter(answer.pattern))
         unused: Iterator[BankItem] = self._explode(filter(Bank.not_already_used_predicate(state.used), matches))
+        suggestions = []
         for bank_item in unused:
             legend_updates_ = answer.to_updates(bank_item)
-            def evaluator(candidate: Answer):
-                return this_bank.is_valid_candidate(state, candidate)
-            new_answers: Optional[Dict[int, Answer]] = state.list_new_entries_using_updates(legend_updates_, answer_idx, True, evaluator)
-            if new_answers is not None:
+            def evaluator(candidate: Answer) -> int:
+                return this_bank.rank_candidate(state, candidate)
+            new_answers: AnswerChangeset = state.list_new_entries_using_updates(legend_updates_, answer_idx, True, evaluator)
+            if new_answers and new_answers.rank > 0:
                 new_entries_set: Set[Template] = set()
                 has_dupes = False
                 for a_idx, new_entry in new_answers.items():
@@ -140,7 +141,9 @@ class Bank(object):
                         break
                     new_entries_set.add(new_entry.content)
                 if not has_dupes:
-                    yield Suggestion(legend_updates_, new_answers)
+                    suggestions.append(Suggestion(legend_updates_, new_answers, new_answers.rank))
+        suggestions.sort(key=lambda s: (0 if s.rank is None else s.rank), reverse=True)
+        return suggestions.__iter__()
 
     @staticmethod
     def not_already_used_predicate(already_used: Collection[str]) -> Callable[[BankItem], bool]:
@@ -148,16 +151,21 @@ class Bank(object):
             return entry.rendering not in already_used
         return not_already_used
 
-    def is_valid_candidate(self, state: FillState, candidate: Answer):
+    def rank_candidate(self, state: FillState, candidate: Answer) -> Optional[int]:
         count = self.count_filter(candidate.pattern, uncountable=None)
-        if count is not None:  # if none, then allow it
-            if count <= 0:
-                return False
+        if count is None:
+            return None
+        if count == 0:
+            return 0
+        assert count > 0
         if candidate.content.is_complete():
+            if candidate.content in state.used:
+                return -1
             # suppress inspection because complete Template acts as a WordTuple
             # noinspection PyTypeChecker
-            return candidate.content not in state.used and self.has_word(candidate.content)
-        return True
+            if not self.has_word(candidate.content):
+                return -1
+        return count
 
     def has_word(self, entry: WordTuple):
         return entry in self.tableaus

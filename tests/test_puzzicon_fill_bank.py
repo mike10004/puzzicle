@@ -116,12 +116,12 @@ class BankTest(TestCase):
         actual = collect_new_entries(updates)
         self.assertSetEqual({A2('AB'), A2('AC'), A2('JJ')}, actual)
 
-    def test_is_valid_candidate(self):
+    def test_rank_candidate(self):
         bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
         state = FillState.from_answers(tuple(), (0, 0))
-        self.assertTrue(bank.is_valid_candidate(state, A_from_template(Template('XY'))))
-        self.assertFalse(bank.is_valid_candidate(state, A_from_template(Template('MY'))))
-        self.assertFalse(bank.is_valid_candidate(state, A_from_template(Template(('M', None)))))
+        self.assertGreater(bank.rank_candidate(state, A_from_template(Template('XY'))), 0)
+        self.assertLessEqual(bank.rank_candidate(state, A_from_template(Template('MY'))), 0)
+        self.assertLessEqual(bank.rank_candidate(state, A_from_template(Template(('M', None)))), 0)
 
     def test_not_already_used_predicate(self):
         already_used = {'ABC'}
