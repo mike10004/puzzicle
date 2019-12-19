@@ -19,8 +19,9 @@ def do_main_with_bank(grid: GridModel, bank: Bank, threshold: int):
     fill_start = time.perf_counter()
     filler.fill(state, listener)
     fill_end = time.perf_counter()
-    print("{} seconds to complete".format(fill_end - fill_start))
+    print("{:.1f} seconds to complete".format(fill_end - fill_start))
     state = listener.value()
+    print("{} nodes examined".format(listener.count))
     if state is not None:
         print(state.render(grid))
         return 0

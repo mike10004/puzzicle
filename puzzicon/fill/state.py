@@ -7,7 +7,7 @@ from typing import NamedTuple
 from typing import Tuple, List, Dict, Optional, Iterator, Callable
 
 import puzzicon.grid
-from puzzicon.fill import Answer, Suggestion
+from puzzicon.fill import Answer, Suggestion, Template
 from puzzicon.grid import GridModel
 
 _log = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class FillState(NamedTuple):
     def from_answers(answers: Tuple[Answer, ...], grid_size: Tuple[int, int]) -> 'FillState':
         crosses_dict = defaultdict(list)
         for a_idx, answer in enumerate(answers):
-            for spot in filter(lambda s: isinstance(s, int), answer.content):
+            for spot in filter(lambda s: not Template.is_value_defined(s), answer.content):
                 crosses_dict[spot].append(a_idx)
         # List elements are not yet of the correct type, but they will be eventually
         # noinspection PyTypeChecker

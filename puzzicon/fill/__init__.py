@@ -33,13 +33,13 @@ class Template(Tuple[Union[int, str], ...]):
 
     def __new__(cls, seq, **kwargs) -> 'Template':
         instance = tuple.__new__(Template, seq)
-        strength =  kwargs.get('strength', None)
-        if strength is None:
-            strength = 0
+        t_strength =  kwargs.get('strength', None)
+        if t_strength is None:
+            t_strength = 0
             for x in seq:
-                if not isinstance(x, int):
-                    strength += 1
-        instance._strength = strength
+                if Template.is_value_defined(x):
+                    t_strength += 1
+        instance._strength = t_strength
         return instance
 
     def length(self) -> int:
@@ -47,6 +47,17 @@ class Template(Tuple[Union[int, str], ...]):
 
     def strength(self) -> int:
         return self._strength
+
+    @staticmethod
+    def is_value_defined_at(instance: 'Template', index: int):
+        return Template.is_value_defined(instance[index])
+
+    @staticmethod
+    def is_value_defined(value: Union[int, str]):
+        return not isinstance(value, int)
+
+    def is_defined_at(self, index: int):
+        return Template.is_value_defined_at(self, index)
 
     def is_complete(self) -> bool:
         return self._strength == len(self)
@@ -86,8 +97,8 @@ class Answer(NamedTuple):
     @staticmethod
     def define(content: Sequence[Union[int, str]]) -> 'Answer':
         content = Template(content)
-        pattern = Pattern([(None if isinstance(x, int) else x) for x in content])
-        strength = sum([0 if p is None else 1 for p in pattern])
+        pattern = Pattern([(x if Template.is_value_defined(x) else None) for x in content])
+        strength = content.strength()
         # noinspection PyTypeChecker
         return Answer(content, pattern, strength)
 
@@ -104,59 +115,33 @@ class Answer(NamedTuple):
     def is_all_defined(self) -> bool:
         return self.strength == self.length()
 
-    def is_all_defined_after(self, legend_updates: Dict[int, str]) -> bool:
-        for spot in self.content:
-            if isinstance(spot, int) and not spot in legend_updates:
-                return False
-        return True
+    def is_undefined_at(self, index):
+        return not self.content.is_defined_at(index)
 
     def update(self, legend_updates: Dict[int, str]) -> 'Answer':
         num_unknown = 0
         num_updates = 0
-        letters = []
+        template_src = []
         pattern_src = []
-        for spot in self.content:
-            if isinstance(spot, int):
+        for i in range(self.length()):
+            spot = self.content[i]
+            if self.content.is_defined_at(i):
+                template_src.append(spot)
+                pattern_src.append(spot)
+            else:
                 p_val = legend_updates.get(spot, None)
                 if p_val is None:
-                    val = spot
+                    t_val = spot
                     num_unknown += 1
                 else:
-                    val = p_val
+                    t_val = p_val
                     num_updates += 1
-                letters.append(val)
+                template_src.append(t_val)
                 pattern_src.append(p_val)
-            else:
-                letters.append(spot)
-                pattern_src.append(spot)
-        content = Template(letters)
         pattern = Pattern(pattern_src)
         strength = pattern.length() - num_unknown
+        content = Template(template_src, strength=strength)
         return Answer(content, pattern, strength)
-
-
-    def render_content(self, legend_updates: Dict[int, str]) -> Union[Template, WordTuple]:
-        """
-        Produces a new template or word-tuple by updating this answer's template
-        with the given mapping of grid indexes to cell content.
-        @param legend_updates: map of grid indexes to cell content
-        @return: a template, or a word-tuple if the template would have zero unknowns
-        """
-        num_unknown = 0
-        num_updates = 0
-        letters = []
-        for spot in self.content:
-            if isinstance(spot, int):
-                val = legend_updates.get(spot, None)
-                if val is None:
-                    val = spot
-                    num_unknown += 1
-                else:
-                    num_updates += 1
-                letters.append(val)
-            else:
-                letters.append(spot)
-        return WordTuple(letters) if num_unknown == 0 else Template(letters)
 
     def to_updates(self, entry: BankItem) -> Dict[int, str]:
         """

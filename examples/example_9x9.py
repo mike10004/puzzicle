@@ -16,50 +16,17 @@ _GRID_TEXT =  (".___.___." +
                "_________" +
                ".___.___.")
 
-_WORDS_9x9 = list(map(str.upper, ["act",
-"are",
-"snootiest",
-"inamorata",
-"tog",
-"denim",
-"tub",
-"dim",
-"baled",
-"Mae",
-"stalemate",
-"detonator",
-"sew",
-"oer",
-"annotates",
-"coagulate",
-"tom",
-"aired",
-"reanimate",
-"estimator",
-"sit",
-"Tod",
-"tam",
-"below",
-"BSD",
-"den",
-"eer",
-"Mao"]))
-
-
+_WORDS_9x9 = list(map(str.upper,
+      ["act", "are", "snootiest", "inamorata", "tog",
+       "denim", "tub", "dim", "baled", "Mae",
+       "stalemate", "detonator", "sew", "oer", "annotates",
+       "coagulate", "tom", "aired", "reanimate", "estimator",
+       "sit", "Tod", "tam", "below", "BSD",
+       "den", "eer", "Mao"]))
 _NONWORDS_9x9 = """\
-FIT
-EXTERMINATE
-PAT
-OBJECT
-LYNN
-CHESTERTON
-FEATHER
-PRO
-SALES
-AUGMENT
-PIN
-AND
-MAROON
+        FIT EXTERMINATE PAT OBJECT LYNN 
+        CHESTERTON FEATHER PRO SALES AUGMENT PIN
+        AND MAROON
 """.split("\n")
 _DICTIONARY_9x9 = _WORDS_9x9 + _NONWORDS_9x9
 

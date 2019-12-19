@@ -8,7 +8,7 @@ import pickle
 import os.path
 from collections import defaultdict
 from typing import Collection, FrozenSet, Set, Optional, BinaryIO, Iterable
-from typing import List, Sequence, Dict, Iterator, Callable
+from typing import List, Dict, Iterator, Callable
 
 import puzzicon
 from puzzicon import Puzzeme
@@ -224,7 +224,7 @@ class BankLoader(object):
             bank_pathname = self.get_cached_bank_pathname(wordlist_pathname)
             os.makedirs(os.path.dirname(bank_pathname), exist_ok=True)
             serializer.serialize_to_file(bank, bank_pathname)
-            print("bank written to", bank_pathname)
+            _log.debug("bank written to %s", bank_pathname)
         return bank
 
     def get_cached_bank_pathname(self, wordlist_pathname: str) -> str:
@@ -237,7 +237,7 @@ class BankLoader(object):
             try:
                 serializer = BankSerializer()
                 bank = serializer.deserialize_from_file(cached_bank_pathname)
-                _log.debug("bank read from %s", cached_bank_pathname)
+                _log.debug("cached bank loaded from %s", cached_bank_pathname)
                 return bank
             except FileNotFoundError:
                 pass
