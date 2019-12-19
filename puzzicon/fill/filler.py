@@ -1,23 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from typing import Tuple, List, Sequence, Dict, Optional, Iterator, Callable, Any
 import logging
-from puzzicon.fill.state import FillState
+import time
+from typing import Optional, Callable, Any
+
 from puzzicon.fill.bank import Bank
+from puzzicon.fill.state import FillState
 
 _log = logging.getLogger(__name__)
 _CONTINUE = False
 _STOP = True
 
+class Receiver(Callable[['FillListener', FillState, Bank, bool], None]):
+
+    def __call__(self, *args, **kwargs):
+        listener, state, bank, result = args
+        raise NotImplementedError("subclasses must override")
+
 class FillListener(object):
 
-    def __init__(self, threshold: int=None, notify: Optional[Callable[['FillListener', FillState, Bank, bool], None]]=None):
-        self.threshold = threshold
+    def __init__(self, node_threshold: int=None, duration_threshold: float=None):
+        self.node_threshold = node_threshold
         self.count = 0
-        self.notify = notify
+        self.start = None
+        self.duration_threshold = duration_threshold
 
-    def __call__(self, state: FillState, bank: Bank):
+    def accept(self, state: FillState, bank: Bank):
+        if self.start is None:
+            self.start = time.perf_counter()
         keep_going = self.check_state(state, bank)
         self.count += 1
         if keep_going != _CONTINUE:
@@ -26,23 +37,28 @@ class FillListener(object):
             result = _STOP
         else:
             result = _CONTINUE
-        if self.notify is not None:
-            self.notify(self, state, bank, result)
         return result
 
     def check_state(self, state: FillState, bank: Bank):
         raise NotImplementedError("subclass must implement")
 
     def is_over_threshold(self):
-        return self.threshold is not None and self.count >= self.threshold
+        if self.node_threshold is not None:
+            if self.count >= self.node_threshold:
+                return True
+        if self.duration_threshold is not None and self.start is not None:
+            duration = time.perf_counter() - self.start
+            if duration >= self.duration_threshold:
+                return True
+        return False
 
     def value(self):
         raise NotImplementedError("subclass must implement")
 
 class FirstCompleteListener(FillListener):
 
-    def __init__(self, threshold: int=None):
-        super().__init__(threshold)
+    def __init__(self, node_threshold: int=None, duration_threshold: float=None):
+        super().__init__(node_threshold, duration_threshold)
         self.completed = None
 
     def check_state(self, state: FillState, bank: Bank):
@@ -57,8 +73,8 @@ class FirstCompleteListener(FillListener):
 
 class AllCompleteListener(FillListener):
 
-    def __init__(self, threshold: int=None):
-        super().__init__(threshold)
+    def __init__(self, node_threshold: int=None, duration_threshold: float=None):
+        super().__init__(node_threshold, duration_threshold)
         self.completed = set()
 
     def value(self):
@@ -89,10 +105,10 @@ class Filler(object):
         self._fill(FillStateNode(state), listener)
         return listener
 
-    def _fill(self, node: FillStateNode, listener: Callable[[FillState, Bank], bool]) -> bool:
+    def _fill(self, node: FillStateNode, listener: FillListener) -> bool:
         if self.tracer is not None:
             self.tracer(node)
-        if listener(node.state, self.bank) == _STOP:
+        if listener.accept(node.state, self.bank) == _STOP:
             return _STOP
         action_flag = _CONTINUE
         for template_idx in node.state.unfilled():
