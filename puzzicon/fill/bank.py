@@ -3,8 +3,9 @@
 
 import itertools
 import logging
+import pickle
 from collections import defaultdict
-from typing import Collection, FrozenSet, Set, Optional
+from typing import Collection, FrozenSet, Set, Optional, BinaryIO
 from typing import List, Sequence, Dict, Iterator, Callable
 
 from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer, Template
@@ -41,6 +42,9 @@ class Bank(object):
         self.by_pattern = by_pattern
         self.debug = debug
         self.pattern_registry_cap = pattern_registry_cap
+
+    def size(self) -> int:
+        return len(self.deposits)
 
     @staticmethod
     def with_registry(entries: Sequence[str], pattern_registry_cap=_DEFAULT_MAX_PATTERN_LEN, debug: bool=False):
@@ -156,3 +160,20 @@ class Bank(object):
 
     def __str__(self):
         return "Bank<num_words={},num_patterns_registered={}>".format(len(self.deposits), len(self.by_pattern))
+
+
+class BankSerializer(object):
+
+    def serialize(self, bank: Bank, ofile: BinaryIO):
+        pickle.dump(bank, ofile)
+
+    def serialize_to_file(self, bank: Bank, pathname: str):
+        with open(pathname, 'wb') as ofile:
+            self.serialize(bank, ofile)
+
+    def deserialize(self, ifile: BinaryIO) -> Bank:
+        return pickle.load(ifile)
+
+    def deserialize_from_file(self, pathname: str) -> Bank:
+        with open(pathname, 'rb') as ifile:
+            return self.deserialize(ifile)

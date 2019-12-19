@@ -4,6 +4,7 @@
 import random
 import sys
 import time
+import unittest
 from typing import Tuple, NamedTuple, Iterator, Sequence, List, Set
 from unittest import TestCase, SkipTest
 import puzzicon
@@ -32,6 +33,10 @@ def A(*args) -> Answer:
 T = A
 B = BankItem.from_word
 W = WordTuple
+
+def render_words(bank: Bank) -> Iterator[str]:
+    for tab in bank.tableaus:
+        yield ''.join(tab)
 
 class BankItemTest(TestCase):
 
@@ -165,3 +170,10 @@ class BankTest(TestCase):
         matches = list(bank.filter(['A', None, None, 'L', 'E']))
         self.assertIn('APPLE', matches)
         self.assertIn('ADDLE', matches)
+
+    @unittest.skip("functionality not yet implemented")
+    def test_bank_create_clean(self):
+        bank = create_bank("consciousness's", "d'Estaing", "sewing", "'allo", "ain't")
+        actual = set(render_words(bank))
+        self.assertSetEqual({"CONSCIOUSNESS", "DESTAING", "SEWING", "ALLO", "AINT"}, actual)
+

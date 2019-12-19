@@ -60,6 +60,10 @@ pumpkin"""
         self.assertEqual(26 * 2, len(puzzicon._ALPHABET_ALPHA))
         self.assertEqual(26 * 2, len(set(puzzicon._ALPHABET_ALPHA)))
 
+    def test_read_clean(self):
+        puzzemes = puzzicon.read_puzzeme_set('/usr/share/dict/words')
+        self.assertNotIn(Puzzeme.create('BURNSS'), puzzemes)
+
 
 class PuzzemeTest(unittest.TestCase):
 

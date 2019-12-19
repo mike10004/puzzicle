@@ -12,9 +12,7 @@ from puzzicon.grid import GridModel
 import time
 
 
-def do_main(grid: GridModel, wordlist: List[str], rng: random.Random, threshold: int):
-    rng.shuffle(wordlist)
-    bank = Bank.with_registry(list(map(str.upper, wordlist)))
+def do_main_with_bank(grid: GridModel, bank: Bank, threshold: int):
     state = FillState.from_grid(grid)
     listener = FirstCompleteListener(threshold)
     filler = Filler(bank)
@@ -29,3 +27,9 @@ def do_main(grid: GridModel, wordlist: List[str], rng: random.Random, threshold:
     print("no solution found", file=sys.stderr)
     return 2
 
+
+def do_main(grid: GridModel, wordlist: List[str], rng: random.Random, threshold: int):
+    rng.shuffle(wordlist)
+    bank = Bank.with_registry(list(map(str.upper, wordlist)))
+    print("bank created with", bank.size(), "deposits")
+    return do_main_with_bank(grid, bank, threshold)

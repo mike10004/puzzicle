@@ -177,9 +177,21 @@ def create_puzzeme_set(ifile: Iterable[str], intolerables=None):
     return frozenset(items)
 
 
-def read_puzzeme_set(pathname):
+def _standard_cleaner(line: str) -> str:
+    line = line.strip()
+    if line.lower().endswith("'s"):
+        line = line[:-2]
+    return line
+
+
+def read_puzzeme_set(pathname: str, cleaner: Callable[[str], str]=None):
+    if cleaner is None:
+        cleaner = _standard_cleaner
+    if cleaner == 'identity':
+        cleaner = lambda x: x
     with open(pathname, 'r') as ifile:
-        return create_puzzeme_set(ifile)
+        cleaned = map(cleaner, ifile)
+        return create_puzzeme_set(cleaned)
 
 
 def load_default_puzzemes():
