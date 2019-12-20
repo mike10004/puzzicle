@@ -23,11 +23,11 @@ tests.configure_logging()
 # noinspection PyPep8Naming
 def A(*args) -> Answer:
     """Create a template with the argument indices"""
-    return Answer.define(args)
+    return Answer.create(args)
 
 # noinspection PyPep8Naming
 def A2(s: str) -> Answer:
-    return Answer.define(s)
+    return Answer.create(s)
 
 def template(*args) -> Template:
     return Template(args)
@@ -41,7 +41,7 @@ def map_all(templates: Sequence[int], legend: Sequence[str]) -> List[Answer]:
             return legend[idx]
         except IndexError:
             return idx
-    return [Answer.define(list(map(get_or_default, template))) for template in templates]
+    return [Answer.create(list(map(get_or_default, template))) for template in templates]
 
 
 
@@ -101,7 +101,7 @@ class TemplateTest(TestCase):
 class AnswerTest(TestCase):
 
     def test_define(self):
-        t = Answer.define([0, 1, 2])
+        t = Answer.create([0, 1, 2])
         self.assertIsInstance(t, tuple)
         self.assertIsInstance(t, Answer)
         self.assertTupleEqual((0, 1, 2), t.content)
@@ -109,13 +109,13 @@ class AnswerTest(TestCase):
         self.assertEqual(0, t.strength, "strength")
 
     def test_define_str(self):
-        a = Answer.define('abc')
+        a = Answer.create('abc')
         self.assertIsInstance(a, Answer)
         self.assertTupleEqual(('a', 'b', 'c'), a.content)
         self.assertTupleEqual(('a', 'b', 'c'), a.pattern)
 
     def test_define_2(self):
-        t = Answer.define([0, 'b', 2])
+        t = Answer.create([0, 'b', 2])
         self.assertTupleEqual((0, 'b', 2), t.content)
         self.assertTupleEqual((None, 'b', None), t.pattern)
         self.assertEqual(1, t.strength, "strength")
@@ -126,42 +126,9 @@ class AnswerTest(TestCase):
         self.assertEqual(0, t.strength, "strength")
 
     def test_to_legend_updates(self):
-        answer = Answer.define(('G', 2))
+        answer = Answer.create(('G', 2))
         actual = answer.to_updates(BankItem.from_word('GX'))
         self.assertDictEqual({2: 'X'}, actual)
-
-
-
-class ModuleTest(TestCase):
-
-    def test__sort_and_check_duplicates_presorted_hasdupes_words(self):
-        a = ['ac', 'cd', 'ac', 'cd']
-        b = a.copy()
-        self.assertTrue(puzzicon.fill._sort_and_check_duplicates(a))
-        self.assertListEqual(a, sorted(b))
-
-    def test__sort_and_check_duplicates_presorted_nodupes(self):
-        a = [1, 2, 3]
-        self.assertFalse(puzzicon.fill._sort_and_check_duplicates(a))
-        self.assertListEqual(a, sorted(a))
-
-    def test__sort_and_check_duplicates_presorted_dupes(self):
-        for b in [[1, 1, 2, 3], [1, 2, 2, 3], [1, 2, 3, 3]]:
-            a = b.copy()
-            self.assertTrue(puzzicon.fill._sort_and_check_duplicates(a))
-            self.assertListEqual(a, sorted(b))
-
-    def test__sort_and_check_duplicates_notsorted_dupes(self):
-        for b in [[1, 1, 3, 2], [3, 2, 1, 2], [2, 1, 3, 3], [3, 1, 2, 3]]:
-            a = b.copy()
-            self.assertTrue(puzzicon.fill._sort_and_check_duplicates(a))
-            self.assertListEqual(a, sorted(b))
-
-    def test__sort_and_check_duplicates_notsorted_nodupes(self):
-        for b in [[1, 3, 2], [3, 1, 2], [2, 1, 3]]:
-            a = b.copy()
-            self.assertFalse(puzzicon.fill._sort_and_check_duplicates(a))
-            self.assertListEqual(a, sorted(b))
 
 
 class FillStateTest(TestCase):
@@ -183,35 +150,35 @@ class FillStateTest(TestCase):
         grid = GridModel.build("____")  # 2x2
         state1 = FillState.from_grid(grid)
         self.assertEqual(4, state1.num_incomplete)
-        self.assertEqual(Answer.define((0, 2)), state1.answers[1], "precondition")
-        self.assertEqual(Answer.define((1, 3)), state1.answers[2], "precondition")
-        state2 = state1.advance_unchecked(Suggestion({0: 'a', 1: 'b'}, {0: A2('ab')}))
+        self.assertEqual(Answer.create((0, 2)), state1.answers[1], "precondition")
+        self.assertEqual(Answer.create((1, 3)), state1.answers[2], "precondition")
+        state2 = state1.advance(Suggestion({0: 'a', 1: 'b'}, {0: A2('ab')}))
         self.assertIs(state1.crosses, state2.crosses)
         self.assertNotEqual(state1, state2)
         self.assertSetEqual({'ab'}, set(Render.filled(state2)))
         self.assertEqual(3, state2.num_incomplete)
-        self.assertEqual(Answer.define('ab'), state2.answers[0], "answer 0 change expected")
-        self.assertEqual(Answer.define(('a', 2)), state2.answers[1], "answer 1 change expected")
-        self.assertEqual(Answer.define(('b', 3)), state2.answers[2], "answer 1 change expected")
+        self.assertEqual(Answer.create('ab'), state2.answers[0], "answer 0 change expected")
+        self.assertEqual(Answer.create(('a', 2)), state2.answers[1], "answer 1 change expected")
+        self.assertEqual(Answer.create(('b', 3)), state2.answers[2], "answer 1 change expected")
         self.assertSetEqual({
-            Answer.define(('a', 'b')),
-            Answer.define(('a', 2)),
-            Answer.define(('b', 3)),
-            Answer.define((2, 3)),
+            Answer.create(('a', 'b')),
+            Answer.create(('a', 2)),
+            Answer.create(('b', 3)),
+            Answer.create((2, 3)),
         }, set(state2.answers), "expect crossing answer to change")
 
     def test_advance_additional_entries_added(self):
         # noinspection PyTypeChecker
         state2 = FillState.from_answers((A('a','b'),A(2,3),A('a',2),A('b',3)), (2, 2))
         sugg = Suggestion({2: 'c', 3: 'd'}, {1: A2('cd'), 2: A2('ac'), 3: A2('bd')})
-        state3 = state2.advance_unchecked(sugg)
+        state3 = state2.advance(sugg)
         self.assertSetEqual({'ab', 'cd', 'ac', 'bd'}, set(Render.filled(state3)))
 
     def test_advance_additional_entries_added_incorrect(self):
         # noinspection PyTypeChecker
         state2 = FillState.from_answers((A('a', 'c'),A(2,3),A('a',2),A('c',3)), (2, 2))
         sugg = Suggestion({2: 'c', 3: 'd'}, {1: A2('cd'), 2: A2('ac'), 3: A2('cd')})
-        state3 = state2.advance_unchecked(sugg)
+        state3 = state2.advance(sugg)
         self.assertSetEqual({'ac', 'cd'}, set(Render.filled(state3)))
 
     # noinspection PyTypeChecker
@@ -236,18 +203,18 @@ class FillStateTest(TestCase):
         self.assertFalse(state.is_complete())
 
     # noinspection PyTypeChecker
-    def test_unfilled(self):
+    def test_provide_unfilled(self):
         templates = (
             (0, 1, 2),
             (2, 0, 2),
-            (12, 4, 1),  # 12 is not satisfed
+            (12, 4, 1),
             (5, 2),
             (4, 9, 4, 0, 4, 2),
         )
         answers = map_all(templates, ['a', 'b', 'c', 'd', 'e', 'f'])
         state = FillState.from_answers(answers, (4, 4))
-        unfilled = list(state.unfilled())
-        self.assertListEqual([2, 4], unfilled)
+        unfilled = list(state.provide_unfilled())
+        self.assertSetEqual({2, 4}, set(unfilled))
 
     def test_list_new_entries_using_updates_exclude(self):
         templates: Tuple[Answer, ...] = (A('A', 'B'), A(2,3), A('A', 2), A('B', 3))

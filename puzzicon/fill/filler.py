@@ -84,9 +84,9 @@ class AllCompleteListener(FillListener):
 class FillStateNode(object):
 
     def __init__(self, state: FillState, parent: 'FillStateNode'=None):
-        self.state = state
-        self.parent = parent
-        self.known_unfillable = False
+        self.state: FillState = state
+        self.parent: Optional[FillStateNode] = parent
+        self.known_unfillable: bool = False
 
 
 class Filler(object):
@@ -107,9 +107,9 @@ class Filler(object):
         if listener.accept(node.state, self.bank) == _STOP:
             return _STOP
         action_flag = _CONTINUE
-        for answer_idx in node.state.unfilled(self.sorter):
-            for suggestion in self.bank.suggest_updates(node.state, answer_idx):
-                new_state = node.state.advance_unchecked(suggestion)
+        for answer_idx in node.state.provide_unfilled(self.sorter):
+            for suggestion in self.bank.suggest(node.state, answer_idx):
+                new_state = node.state.advance(suggestion)
                 new_node = FillStateNode(new_state, node)
                 continue_now =  self._fill(new_node, listener)
                 if continue_now != _CONTINUE:

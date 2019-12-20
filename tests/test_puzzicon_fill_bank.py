@@ -28,11 +28,11 @@ tests.configure_logging()
 # noinspection PyPep8Naming
 def A(*args) -> Answer:
     """Define an Answer object"""
-    return Answer.define(args)
+    return Answer.create(args)
 
 # noinspection PyPep8Naming
 def A2(s) -> Answer:
-    return Answer.define(s)
+    return Answer.create(s)
 
 
 # noinspection PyPep8Naming
@@ -107,15 +107,6 @@ class BankTest(TestCase):
                 pattern = Pattern(pattern)
                 self.assertFalse(Bank.matches(entry, pattern), f"expect {entry} does NOT match {pattern}")
 
-    def test_suggest_updates_1(self):
-        words = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
-        bank = create_bank(*words)
-        answers: Tuple[Answer, ...] = (A(0,1), A(2,3), A(0,2), A(1,3))
-        state = FillState.from_answers(answers, (2, 2))
-        updates = list(bank.suggest_updates(state, 0))
-        actual = collect_new_entries(updates)
-        self.assertSetEqual({A2('AB'), A2('AC'), A2('JJ')}, actual)
-
     def test_rank_candidate(self):
         bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
         state = FillState.from_answers(tuple(), (0, 0))
@@ -136,7 +127,7 @@ class BankTest(TestCase):
 
     def test_filter_unused(self):
         bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
-        answer = Answer.define(['A', 2])
+        answer = Answer.create(['A', 2])
         pattern = answer.pattern
         matches = list(bank.filter(pattern))
         used = ('AB', None, None, None)
@@ -144,7 +135,26 @@ class BankTest(TestCase):
         unused_words = set(map(lambda b: b.rendering, unused))
         self.assertSetEqual({'AC', 'AX'}, unused_words)
 
-    def test_suggest_updates_3(self):
+    def test_suggest_1(self):
+        words = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
+        bank = create_bank(*words)
+        answers: Tuple[Answer, ...] = (A(0,1), A(2,3), A(0,2), A(1,3))
+        state = FillState.from_answers(answers, (2, 2))
+        updates = list(bank.suggest(state, 0))
+        actual = collect_new_entries(updates)
+        self.assertSetEqual({A2('AB'), A2('AC'), A2('JJ')}, actual)
+
+    def test_suggest_2(self):
+        words_2chars = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
+        words_3chars = ['TAB', 'QCD', 'YAC', 'CBD', 'JXY', 'TJJ', 'NOP']
+        all_words = words_2chars + words_3chars
+        bank = create_bank(*all_words)
+        templates = (A(0,1), A(2,3), A(0,2), A(1,3))
+        state = FillState.from_answers(templates, (2, 2))
+        actual = collect_new_entries(bank.suggest(state, 0))
+        self.assertSetEqual({A2('AB'), A2('AC'), A2('JJ')}, actual)
+
+    def test_suggest_3(self):
         bank = create_bank('AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP', 'BX', 'AX')
 
         # AB
@@ -152,18 +162,8 @@ class BankTest(TestCase):
 
         templates: Tuple[Answer, ...] = (A('A', 'B'), A(2,3), A('A',2), A('B',3))
         state = FillState.from_answers(templates, (2, 2))
-        actual = collect_new_entries(bank.suggest_updates(state, 2))
+        actual = collect_new_entries(bank.suggest(state, 2))
         self.assertSetEqual({A2('AC'), A2('AX')}, actual)
-
-    def test_suggest_updates_2(self):
-        words_2chars = ['AB', 'CD', 'AC', 'BD', 'XY', 'JJ', 'OP']
-        words_3chars = ['TAB', 'QCD', 'YAC', 'CBD', 'JXY', 'TJJ', 'NOP']
-        all_words = words_2chars + words_3chars
-        bank = create_bank(*all_words)
-        templates = (A(0,1), A(2,3), A(0,2), A(1,3))
-        state = FillState.from_answers(templates, (2, 2))
-        actual = collect_new_entries(bank.suggest_updates(state, 0))
-        self.assertSetEqual({A2('AB'), A2('AC'), A2('JJ')}, actual)
 
     def test_filter(self):
         bank = create_bank('ABC', 'DEF', 'ABX', 'G', 'HI', 'ACC')

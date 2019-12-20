@@ -13,7 +13,7 @@ import time
 
 
 def do_main_with_bank(grid: GridModel, bank: Bank, fill_listener: FillListener):
-    state = FillState.from_grid(grid)
+    state: FillState = FillState.from_grid(grid)
     filler = Filler(bank)
     fill_start = time.perf_counter()
     filler.fill(state, fill_listener)

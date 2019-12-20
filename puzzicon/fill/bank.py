@@ -120,7 +120,7 @@ class Bank(object):
             return list(iterator)
         return iterator
 
-    def suggest_updates(self, state: FillState, answer_idx: int) -> Iterator[Suggestion]:
+    def suggest(self, state: FillState, answer_idx: int) -> Iterator[Suggestion]:
         this_bank = self
         answer: Answer = state.answers[answer_idx]
         matches: Iterator[BankItem] = self._explode(self.filter(answer.pattern))

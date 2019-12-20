@@ -3,7 +3,7 @@
 
 import logging
 import random
-from typing import NamedTuple
+from typing import NamedTuple, List
 from unittest import TestCase
 
 import tests
@@ -25,7 +25,7 @@ def render_node(node: FillStateNode, grid: GridModel):
     print(node.state.render(grid))
 
 def _show_path(node: FillStateNode, grid: GridModel):
-    path = []
+    path: List[FillState] = []
     while node is not None:
         path.append(node.state)
         node = node.parent

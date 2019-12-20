@@ -47,30 +47,32 @@ class FillState(NamedTuple):
         for i in range(len(crosses)):
             if crosses[i] is None:
                 crosses[i] = tuple()
-        used = [None if not a.is_all_defined() else ''.join(a.pattern) for a in answers]
+        used = [None if not a.is_complete() else ''.join(a.pattern) for a in answers]
         num_incomplete = sum([1 if u is None else 0 for u in used])
         return FillState(tuple(answers), tuple(crosses), tuple(used), num_incomplete)
 
     def is_complete(self):
         return self.num_incomplete == 0
 
-    def unfilled(self, sorter=Optional[Callable[[Answer], int]]) -> Iterator[int]:
+    def provide_unfilled(self, sorter: Optional[Callable[[Answer], int]]=None) -> Iterator[int]:
         """Return an iterator supplying indexes of answers that are not complete."""
         if sorter is None:
             sorter = default_answer_sort_key
-        indexes_and_answers = list(filter(lambda idx_and_answer: not idx_and_answer[1].is_all_defined(), enumerate(self.answers)))
-        indexes_and_answers.sort(key=lambda idx_and_answer: sorter(idx_and_answer[1]))
+        indexes_and_answers = list(filter(lambda idx_and_answer: not idx_and_answer[1].is_complete(), enumerate(self.answers)))
+        def sort_key(idx_and_answer: Tuple[int, Answer]):
+            return sorter(idx_and_answer[1])
+        indexes_and_answers.sort(key=sort_key)
         return map(lambda idx_and_answer: idx_and_answer[0], indexes_and_answers)
 
-    def advance_unchecked(self, suggestion: Suggestion) -> 'FillState':
-        answers = list(self.answers)
+    def advance(self, suggestion: Suggestion) -> 'FillState':
+        answers: List[Answer] = list(self.answers)
         used = list(self.used)  # some elements may go from None -> str
         num_incomplete = self.num_incomplete  # decreases by number of new strings in 'used'
         newly_defined_answer_indexes = set()
         for a_idx, new_answer in suggestion.new_entries.items():
             answer = self.answers[a_idx]
             # is this always true based on how we get the Suggestion in the first place?
-            if not answer.is_all_defined() and new_answer.is_all_defined():
+            if not answer.is_complete() and new_answer.is_complete():
                     answers[a_idx] = new_answer
                     newly_defined_answer_indexes.add(a_idx)
                     rendering = ''.join(new_answer.content)
@@ -98,7 +100,7 @@ class FillState(NamedTuple):
             for square in entry.squares:
                 index = grid.get_index(square)
                 indexes.append(index)
-            answers.append(Answer.define(indexes))
+            answers.append(Answer.create(indexes))
         return FillState.from_answers(tuple(answers), grid.dims())
 
     # noinspection PyProtectedMember

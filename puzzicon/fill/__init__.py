@@ -95,7 +95,7 @@ class Answer(NamedTuple):
     strength: int
 
     @staticmethod
-    def define(content: Sequence[Union[int, str]]) -> 'Answer':
+    def create(content: Sequence[Union[int, str]]) -> 'Answer':
         content = Template(content)
         pattern = Pattern([(x if Template.is_value_defined(x) else None) for x in content])
         strength = content.strength()
@@ -115,13 +115,16 @@ class Answer(NamedTuple):
     def length(self) -> int:
         return self.pattern.length()
 
-    def is_all_defined(self) -> bool:
+    def is_complete(self) -> bool:
         return self.strength == self.length()
 
-    def is_undefined_at(self, index):
-        return not self.content.is_defined_at(index)
-
     def update(self, legend_updates: Dict[int, str]) -> 'Answer':
+        """
+        Creates a new answer that represents the result of updating this
+        answer with the given mapping of grid index to square value.
+        @param legend_updates: map of grid indexes to square values
+        @return: a new answer instance
+        """
         num_unknown = 0
         num_updates = 0
         template_src = []
@@ -149,7 +152,7 @@ class Answer(NamedTuple):
     def to_updates(self, entry: BankItem) -> Dict[int, str]:
         """
         Returns a map of grid indexes to cell content that represents each new mapping
-        forced by the given entry.
+        specified by the given entry.
         @param entry: the entry
         @return: a dictionary
         """
@@ -161,14 +164,6 @@ class Answer(NamedTuple):
                 legend_updates[k] = v
         return legend_updates
 
-
-
-def _sort_and_check_duplicates(items: list) -> bool:
-    items.sort()
-    for i in range(1, len(items)):
-        if items[i - 1] == items[i]:
-            return True
-    return False
 
 
 class Suggestion(object):
