@@ -5,18 +5,13 @@ import logging
 import time
 from typing import Optional, Callable, Any
 
+from puzzicon.fill import Answer
 from puzzicon.fill.bank import Bank
 from puzzicon.fill.state import FillState
 
 _log = logging.getLogger(__name__)
 _CONTINUE = False
 _STOP = True
-
-class Receiver(Callable[['FillListener', FillState, Bank, bool], None]):
-
-    def __call__(self, *args, **kwargs):
-        listener, state, bank, result = args
-        raise NotImplementedError("subclasses must override")
 
 class FillListener(object):
 
@@ -99,6 +94,7 @@ class Filler(object):
     def __init__(self, bank: Bank, tracer: Optional[Callable[[FillStateNode], Any]]=None):
         self.bank = bank
         self.tracer = tracer
+        self.sorter: Optional[Callable[[Answer], Any]] = None
 
     def fill(self, state: FillState, listener: FillListener=None) -> FillListener:
         listener = listener or FirstCompleteListener()
@@ -111,9 +107,9 @@ class Filler(object):
         if listener.accept(node.state, self.bank) == _STOP:
             return _STOP
         action_flag = _CONTINUE
-        for template_idx in node.state.unfilled():
-            for legend_updates in self.bank.suggest_updates(node.state, template_idx):
-                new_state = node.state.advance_unchecked(legend_updates)
+        for answer_idx in node.state.unfilled(self.sorter):
+            for suggestion in self.bank.suggest_updates(node.state, answer_idx):
+                new_state = node.state.advance_unchecked(suggestion)
                 new_node = FillStateNode(new_state, node)
                 continue_now =  self._fill(new_node, listener)
                 if continue_now != _CONTINUE:

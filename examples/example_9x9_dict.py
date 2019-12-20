@@ -7,6 +7,7 @@ import examples
 from examples.example_9x9 import _GRID_TEXT
 # noinspection PyPep8Naming
 from examples.example_9x9 import _WORDS_9x9 as _ANSWER_LIST
+from puzzicon.fill import Answer
 from puzzicon.fill.bank import BankLoader
 from puzzicon.fill.filler import FirstCompleteListener
 from puzzicon.grid import GridModel

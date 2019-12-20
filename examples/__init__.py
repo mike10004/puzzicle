@@ -12,15 +12,15 @@ from puzzicon.grid import GridModel
 import time
 
 
-def do_main_with_bank(grid: GridModel, bank: Bank, listener: FillListener):
+def do_main_with_bank(grid: GridModel, bank: Bank, fill_listener: FillListener):
     state = FillState.from_grid(grid)
     filler = Filler(bank)
     fill_start = time.perf_counter()
-    filler.fill(state, listener)
+    filler.fill(state, fill_listener)
     fill_end = time.perf_counter()
     print("{:.1f} seconds to complete".format(fill_end - fill_start))
-    state = listener.value()
-    print("{} nodes examined in {:.1f} seconds".format(listener.count, time.perf_counter() - listener.start))
+    state = fill_listener.value()
+    print("{} nodes examined in {:.1f} seconds".format(fill_listener.count, time.perf_counter() - fill_listener.start))
     if state is not None:
         print(state.render(grid))
         return 0

@@ -5,7 +5,7 @@ import logging
 from collections import defaultdict
 from typing import NamedTuple
 from typing import Tuple, List, Dict, Optional, Iterator, Callable
-
+from typing import Union
 import puzzicon.grid
 from puzzicon.fill import Answer, Suggestion, Template
 from puzzicon.grid import GridModel
@@ -21,17 +21,17 @@ class AnswerChangeset(Dict[int, Answer]):
 _EMPTY_ANSWER_CHANGESET = AnswerChangeset()
 _EMPTY_ANSWER_CHANGESET.rank = 0.0
 
+
+def default_answer_sort_key(answer: Answer) -> Tuple[Union[float, int], ...]:
+    return -answer.normalized_strength(), answer.length()
+
+
 class FillState(NamedTuple):
 
     answers: Tuple[Answer, ...]
     crosses: Tuple[Tuple[int, ...]]     # maps each grid index to all indexes of answers that contain the grid index
     used: Tuple[Optional[str], ...]     # maps each answer index to rendering of that answer, if complete, or else None
     num_incomplete: int                 # number of incomplete answers remaining
-
-    # deprecated: use from_answers instead
-    @staticmethod
-    def from_templates(templates: Tuple[Answer, ...], grid_size: Tuple[int, int]) -> 'FillState':
-        return FillState.from_answers(templates, grid_size)
 
     @staticmethod
     def from_answers(answers: Tuple[Answer, ...], grid_size: Tuple[int, int]) -> 'FillState':
@@ -54,9 +54,13 @@ class FillState(NamedTuple):
     def is_complete(self):
         return self.num_incomplete == 0
 
-    def unfilled(self) -> Iterator[int]:
-        """Return a generator of indexes of answers that are not completely filled."""
-        return map(lambda pair: pair[0], filter(lambda pair: pair[1] is None, enumerate(self.used)))
+    def unfilled(self, sorter=Optional[Callable[[Answer], int]]) -> Iterator[int]:
+        """Return an iterator supplying indexes of answers that are not complete."""
+        if sorter is None:
+            sorter = default_answer_sort_key
+        indexes_and_answers = list(filter(lambda idx_and_answer: not idx_and_answer[1].is_all_defined(), enumerate(self.answers)))
+        indexes_and_answers.sort(key=lambda idx_and_answer: sorter(idx_and_answer[1]))
+        return map(lambda idx_and_answer: idx_and_answer[0], indexes_and_answers)
 
     def advance_unchecked(self, suggestion: Suggestion) -> 'FillState':
         answers = list(self.answers)

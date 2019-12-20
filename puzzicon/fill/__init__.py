@@ -102,6 +102,9 @@ class Answer(NamedTuple):
         # noinspection PyTypeChecker
         return Answer(content, pattern, strength)
 
+    def normalized_strength(self) -> float:
+        return self.strength / self.length()
+
     def render(self, blank=_BLANK) -> str:
         return ''.join([blank if p is None else p for p in self.pattern])
 

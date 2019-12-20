@@ -161,7 +161,7 @@ class BankTest(TestCase):
         all_words = words_2chars + words_3chars
         bank = create_bank(*all_words)
         templates = (A(0,1), A(2,3), A(0,2), A(1,3))
-        state = FillState.from_templates(templates, (2, 2))
+        state = FillState.from_answers(templates, (2, 2))
         actual = collect_new_entries(bank.suggest_updates(state, 0))
         self.assertSetEqual({A2('AB'), A2('AC'), A2('JJ')}, actual)
 
