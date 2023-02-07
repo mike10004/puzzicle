@@ -1,0 +1,53 @@
+[project]
+name = "puzzicle"
+version = "0.1.0"
+description = "Puzzle creation tools"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+# keywords = ["sample", "setuptools", "development"]
+authors = [
+  {name = "Mike Chaberski", email = "mchaberski+puzzicle@gmail.com" }
+]
+maintainers = [
+#  {name = "Mike Chaberski", email = "mchaberski+puzzicle@gmail.com" }
+]
+classifiers = [  # Optional
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only"
+]
+dependencies = [
+  "puzpy",
+  "unidecode",
+  "pdfkit"
+]
+[project.optional-dependencies]
+dev = ["cprofilev"]
+#test = ["coverage"]
+
+[project.urls]  # Optional
+"Homepage" = "https://github.com/mike10004/puzzicle"
+"Bug Reports" = "https://github.com/mike10004/puzzicle/issues"
+"Source" = "https://github.com/mike10004/puzzicle/"
+
+[project.scripts]
+puzedit = "puzio:editing.main"
+
+# This is configuration specific to the `setuptools` build backend.
+# If you are using a different build backend, you will need to change this.
+[tool.setuptools]
+# If there are data files included in your packages that need to be
+# installed, specify them here.
+#package-data = {"sample" = ["*.dat"]}
+
+[tool.setuptools.packages.find]
+include = ['puzzicle']
+exclude = ['puzzicle/tests']
+
+[build-system]
+# These are the assumed default build requirements from pip:
+# https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
