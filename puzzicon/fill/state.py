@@ -148,7 +148,6 @@ class FillState(NamedTuple):
         @param evaluator: callable accepting an Answer object
         @return: map of answer index to new Answer object
         """
-        # noinspection PyTypeChecker
         updated_answers = AnswerChangeset()
         overall_rank = 0
         num_candidates = 0
@@ -165,9 +164,6 @@ class FillState(NamedTuple):
                             return _EMPTY_ANSWER_CHANGESET
                         overall_rank += rank
                     if another_entry.content.is_complete():
-                        # a complete Template is effectively a WordTuple, so we
-                        # can ignore this type mismatch.
-                        # noinspection PyTypeChecker
                         updated_answers[a_idx] = another_entry
         updated_answers.rank = (overall_rank / num_candidates)
         return updated_answers
