@@ -10,10 +10,10 @@ from collections import defaultdict
 from typing import Collection, FrozenSet, Set, Optional, BinaryIO, Iterable
 from typing import List, Dict, Iterator, Callable
 
-import puzzicon
-from puzzicon import Puzzeme
-from puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer, Template
-from puzzicon.fill.state import FillState, AnswerChangeset
+from puzzicle import puzzicon
+from puzzicle.puzzicon import Puzzeme
+from puzzicle.puzzicon.fill import Pattern, WordTuple, BankItem, Suggestion, Answer, Template
+from puzzicle.puzzicon.fill.state import FillState, AnswerChangeset
 
 _log = logging.getLogger(__name__)
 _EMPTY_SET = frozenset()

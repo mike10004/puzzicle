@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from unittest import TestCase
-from puzzicon.grid import Location, Entry, GridModel, Square
+from puzzicle.puzzicon.grid import Location, GridModel, Square
 # noinspection PyProtectedMember
-from puzzicon.grid import _ACROSS, _DOWN, _DARK
+from puzzicle.puzzicon.grid import _ACROSS, _DOWN, _DARK
 
 class SquareTest(TestCase):
 

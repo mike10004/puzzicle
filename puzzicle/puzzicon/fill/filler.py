@@ -5,9 +5,9 @@ import logging
 import time
 from typing import Optional, Callable, Any
 
-from puzzicon.fill import Answer
-from puzzicon.fill.bank import Bank
-from puzzicon.fill.state import FillState
+from puzzicle.puzzicon.fill import Answer
+from puzzicle.puzzicon.fill.bank import Bank
+from puzzicle.puzzicon.fill.state import FillState
 
 _log = logging.getLogger(__name__)
 _CONTINUE = False

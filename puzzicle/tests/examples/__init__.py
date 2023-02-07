@@ -5,10 +5,10 @@ import random
 import sys
 from typing import List
 
-from puzzicon.fill.state import FillState
-from puzzicon.fill.filler import Filler, FillListener, FirstCompleteListener
-from puzzicon.fill.bank import Bank
-from puzzicon.grid import GridModel
+from puzzicle.puzzicon.fill.state import FillState
+from puzzicle.puzzicon.fill.filler import Filler, FillListener, FirstCompleteListener
+from puzzicle.puzzicon.fill.bank import Bank
+from puzzicle.puzzicon.grid import GridModel
 import time
 
 

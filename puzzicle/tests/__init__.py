@@ -5,10 +5,10 @@ import os
 import os.path
 import errno
 from typing import List, Dict, DefaultDict, Iterator
-import puzzicon
-import puzzicon.fill
-import puzzicon.fill.state
-import puzzicon.fill.bank
+from puzzicle import puzzicon
+import puzzicle.puzzicon.fill
+import puzzicle.puzzicon.fill.state
+import puzzicle.puzzicon.fill.bank
 
 _ENV_LOG_LEVEL = 'UNIT_TESTS_LOG_LEVEL'
 _TESTS_ENV_FILE_FILENAME = 'tests.env'
@@ -77,7 +77,8 @@ class _Data(object):
 
     def __init__(self, directory=None):
         if directory is None:
-            parent = os.path.dirname(os.path.dirname(__file__))
+            this_file = os.path.abspath(__file__)
+            parent = os.path.dirname(this_file)
             self.directory = os.path.join(parent, 'testdata')
         else:
             self.directory = directory
@@ -102,26 +103,26 @@ data = _Data()
 
 
 def is_long_tests_enabled():
-    return False
+    return True
 
 
 _BANK_DEBUG = False
 
 
 def create_bank(*args):
-    puzzemes = puzzicon.create_puzzeme_set(args)
-    return puzzicon.fill.bank.Bank.with_registry([p.canonical for p in puzzemes], debug=_BANK_DEBUG)
+    puzzemes = puzzicle.puzzicon.create_puzzeme_set(args)
+    return puzzicle.puzzicon.fill.bank.Bank.with_registry([p.canonical for p in puzzemes], debug=_BANK_DEBUG)
 
 
 def create_bank_from_wordlist_file(pathname: str='/usr/share/dict/words'):
-    puzzemes = puzzicon.read_puzzeme_set(pathname)
-    return puzzicon.fill.bank.Bank.with_registry([p.canonical for p in puzzemes], debug=_BANK_DEBUG)
+    puzzemes = puzzicle.puzzicon.read_puzzeme_set(pathname)
+    return puzzicle.puzzicon.fill.bank.Bank.with_registry([p.canonical for p in puzzemes], debug=_BANK_DEBUG)
 
 
 class Render(object):
 
     @staticmethod
-    def filled(state: puzzicon.fill.state.FillState) -> Iterator[str]:
+    def filled(state: puzzicle.puzzicon.fill.state.FillState) -> Iterator[str]:
         return filter(lambda x: x is not None, state.used)
 
 

@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 
 import tempfile
-from puzio import editing
+from puzzicle.puzio import editing
 import io
 import puz
-from puzio.editing import PuzzleCreator, ClueParser, Clue, GridParser, QxwParser
+from puzzicle.puzio.editing import PuzzleCreator, ClueParser, Clue, GridParser, QxwParser
 from unittest import TestCase
 import argparse
 import os.path
 import logging
-import tests
+from puzzicle import tests
 
 
 tests.configure_logging()

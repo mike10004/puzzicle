@@ -6,14 +6,14 @@ import random
 from typing import NamedTuple, List
 from unittest import TestCase
 
-import tests
-from puzzicon.fill.bank import Bank
-from puzzicon.fill.filler import FillListener, FirstCompleteListener, AllCompleteListener
-from puzzicon.fill.filler import FillStateNode
-from puzzicon.fill.filler import Filler
-from puzzicon.fill.state import FillState
-from puzzicon.grid import GridModel
-from tests import Render
+from puzzicle import tests
+from puzzicle.puzzicon.fill.bank import Bank
+from puzzicle.puzzicon.fill.filler import FillListener, FirstCompleteListener, AllCompleteListener
+from puzzicle.puzzicon.fill.filler import FillStateNode
+from puzzicle.puzzicon.fill.filler import Filler
+from puzzicle.puzzicon.fill.state import FillState
+from puzzicle.puzzicon.grid import GridModel
+from puzzicle.tests import Render
 
 _log = logging.getLogger(__name__)
 

@@ -1,4 +1,5 @@
-#
+#!/usr/bin/env python3
+
 import math
 from typing import List, Tuple, NamedTuple
 import itertools

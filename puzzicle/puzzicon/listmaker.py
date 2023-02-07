@@ -2,7 +2,7 @@
 
 import sys
 from typing import Optional, TextIO, Callable
-from puzzicon import Puzzeme, InvalidPuzzemeException
+from puzzicle.puzzicon import Puzzeme, InvalidPuzzemeException
 import re
 
 

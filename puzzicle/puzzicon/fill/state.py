@@ -6,9 +6,9 @@ from collections import defaultdict
 from typing import NamedTuple
 from typing import Tuple, List, Dict, Optional, Iterator, Callable
 from typing import Union
-import puzzicon.grid
-from puzzicon.fill import Answer, Suggestion, Template
-from puzzicon.grid import GridModel
+import puzzicle.puzzicon
+from puzzicle.puzzicon.fill import Answer, Suggestion, Template
+from puzzicle.puzzicon.grid import GridModel
 
 _log = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ class FillState(NamedTuple):
         return FillState.from_answers(tuple(answers), grid.dims())
 
     # noinspection PyProtectedMember
-    def render(self, grid: GridModel, newline="\n", none_val='_', dark=puzzicon.grid._DARK) -> str:
+    def render(self, grid: GridModel, newline="\n", none_val='_', dark=puzzicle.puzzicon.grid._DARK) -> str:
         legend = {}
         entries = grid.entries()
         assert len(entries) == len(self.answers)

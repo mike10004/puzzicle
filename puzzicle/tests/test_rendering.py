@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 from unittest import TestCase
-from puzio.rendering import RenderModel, ClueRenderer
-import tests
+from puzzicle.puzio.rendering import RenderModel, ClueRenderer
+from puzzicle import tests
 import puz
 import os
-import puzio.rendering
+from puzzicle.puzio import rendering
 import base64
 import logging
 import tempfile
@@ -19,7 +19,7 @@ _log = logging.getLogger(__name__)
 class RendererTest(TestCase):
 
     def test_render(self):
-        renderer = puzio.rendering.PuzzleRenderer()
+        renderer = rendering.PuzzleRenderer()
         puz_base64 = """70NBQ1JPU1MmRE9XTgAAjkkXpJfPlgYuMS4zAAAAAAAAAAAAAAAAAAAAAAAFBQoAAQAAAEFCQy4u
 LkRFRi5HSC5JSi5LTE0uLi5OT1AtLS0uLi4tLS0uLS0uLS0uLS0tLi4uLS0tAAAAYWxmYQBnb2xm
 AGhvdGVsAGJyYXZvAGluZGlhAGNoYXJsaWUAZGVsdGEAZWNobwBqdWxpZXQAZm94dHJvdAAA
@@ -96,7 +96,7 @@ class ModuleTest(TestCase):
                 'e': 7,
             }
         }
-        d_ = puzio.rendering.merge_dict(d, u)
+        d_ = rendering.merge_dict(d, u)
         self.assertIs(d, d_)
         expected = {
             'a': [1, 2, 3],
@@ -112,6 +112,6 @@ class ModuleTest(TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             puz_file = tests.data.get_file("normal.puz")
             output_file = os.path.join(tmpdir, "output.pdf")
-            exit_code = puzio.rendering.main(["--output", output_file, "--tmpdir", tmpdir, puz_file])
+            exit_code = rendering.main(["--output", output_file, "--tmpdir", tmpdir, puz_file])
             self.assertEqual(0, exit_code)
             self.assertTrue(os.path.isfile(output_file))

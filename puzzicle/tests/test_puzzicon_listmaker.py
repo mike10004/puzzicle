@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
-import io
-import sys
-import logging
-import unittest
 from unittest import TestCase
-import puzzicon
-from puzzicon import Puzzeme, Puzzarian
-import tests
-from puzzicon.listmaker import ListMaker, make_cleaner
+
+from puzzicle import tests
+from puzzicle.puzzicon.listmaker import ListMaker, make_cleaner
+
 tests.configure_logging()
 
 

@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
 import io
-import sys
-import logging
 import unittest
-import puzzicon
-from puzzicon import Puzzeme, Puzzarian
-import tests
+
+from puzzicle import puzzicon
+from puzzicle import tests
+from puzzicle.puzzicon import Puzzeme, Puzzarian
 
 tests.configure_logging()
 

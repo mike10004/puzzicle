@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 import fnmatch
 import logging
-from typing import List, Tuple, Dict, Callable, Set, Iterable, NamedTuple, FrozenSet
+from typing import List, Dict, Callable, Set, Iterable, NamedTuple, FrozenSet
 import unidecode
 
 unicode_normalize = unidecode.unidecode

@@ -3,18 +3,18 @@
 
 from typing import Tuple, NamedTuple, Iterator, Sequence, List
 from unittest import TestCase, SkipTest
-import puzzicon
-from puzzicon.fill import Answer
-from puzzicon.fill.state import FillState
-from puzzicon.fill import Template
-from puzzicon.fill import Pattern
-from puzzicon.fill import Suggestion
-from puzzicon.grid import GridModel
-from puzzicon.fill import WordTuple
-from puzzicon.fill import BankItem
+import puzzicle.puzzicon
+from puzzicle.puzzicon.fill import Answer
+from puzzicle.puzzicon.fill.state import FillState
+from puzzicle.puzzicon.fill import Template
+from puzzicle.puzzicon.fill import Pattern
+from puzzicle.puzzicon.fill import Suggestion
+from puzzicle.puzzicon.grid import GridModel
+from puzzicle.puzzicon.fill import WordTuple
+from puzzicle.puzzicon.fill import BankItem
 import logging
-import tests
-from tests import Render
+from puzzicle import tests
+from puzzicle.tests import Render
 _log = logging.getLogger(__name__)
 
 tests.configure_logging()

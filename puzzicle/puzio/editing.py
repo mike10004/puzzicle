@@ -8,7 +8,7 @@ import puz
 import csv
 import math
 from argparse import Namespace, ArgumentParser
-import puzio
+from puzzicle import puzio
 import typing
 from typing import List, Tuple, Optional
 from typing import TextIO
