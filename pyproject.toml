@@ -33,7 +33,7 @@ dev = ["cprofilev"]
 "Source" = "https://github.com/mike10004/puzzicle/"
 
 [project.scripts]
-puzedit = "puzio:editing.main"
+puzedit = "puzzicle.puzio:editing.main"
 
 # This is configuration specific to the `setuptools` build backend.
 # If you are using a different build backend, you will need to change this.
@@ -43,8 +43,8 @@ puzedit = "puzio:editing.main"
 #package-data = {"sample" = ["*.dat"]}
 
 [tool.setuptools.packages.find]
-include = ['puzzicle']
-exclude = ['puzzicle/tests']
+#include = ['puzzicle']
+exclude = ['puzzicle/tests/**/*']
 
 [build-system]
 # These are the assumed default build requirements from pip:
