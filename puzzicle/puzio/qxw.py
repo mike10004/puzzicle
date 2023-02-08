@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """Tools for handling qxw data."""
-
+import csv
 import io
 import os
 import re
@@ -71,12 +71,17 @@ class AnswersExportCleaner(object):
 
 def print_entries(entries: List[Entry], fmt: str = "markdown", ofile: TextIO = sys.stdout):
     max_answer_length = max([len(entry.answer) for entry in entries])
-    if fmt != "markdown":
-        raise NotImplementedError("non-markdown format not supported")
-    for entry in entries:
-        line = f"| {entry.numeral:3}{entry.direction.value} | {entry.answer:<{max_answer_length}} |"
-        print(line, file=ofile)
-    return 0
+    if fmt == "markdown":
+        for entry in entries:
+            line = f"| {entry.numeral:3}{entry.direction.value} | {entry.answer:<{max_answer_length}} | "
+            print(line, file=ofile)
+    elif fmt == "tsv":
+        csv_writer = csv.writer(ofile, delimiter="\t")
+        for entry in entries:
+            row = [entry.numeral, entry.direction.value, entry.answer]
+            csv_writer.writerow(row)
+    else:
+        raise NotImplementedError("format not supported")
 
 
 def _command_clues(file: str, fmt: str = "markdown", ofile: TextIO = sys.stdout) -> int:
@@ -90,9 +95,10 @@ def main(argv1: List[str] = None, getenv = os.getenv) -> int:
     parser = ArgumentParser(description="Manipulate QXW data.")
     parser.add_argument("command", choices=("clues",), help="command to execute")
     parser.add_argument("file", help="input file")
+    parser.add_argument("--format", choices=("markdown", "tsv"), default="markdown", help="set format")
     args = parser.parse_args(argv1)
     if args.command == "clues":
-        return _command_clues(args.file, ofile=sys.stdout)
+        return _command_clues(args.file, fmt=args.format, ofile=sys.stdout)
     return 0
 
 

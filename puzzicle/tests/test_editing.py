@@ -110,7 +110,7 @@ Down
             clue_numbering = puzzle.clue_numbering()
             _log.debug("clue_numbering", vars(clue_numbering))
 
-class TestClueParser(TestCase):
+class ClueParserTest(TestCase):
 
     def test__parse_text(self):
         text = """Across
@@ -208,6 +208,22 @@ Down
             Clue(6, 'D', 'foxtrot'),
         }
         self.assertSetEqual(expected_clues, set(actual_clues))
+
+    def test_parse_pipes(self):
+        text = """\
+|   5A | OTTER       | Furry one
+|  10A | OPAL        | Milky one
+|   9D | RETRACT     | Take back
+|  15D | PAINE       | Colonial Thomas
+"""
+        actual = ClueParser().parse(io.StringIO(text), pipes=True)
+        expected = [
+            Clue(5, 'A', "Furry one"),
+            Clue(10, 'A', "Milky one"),
+            Clue(9, 'D', "Take back"),
+            Clue(15, 'D', "Colonial Thomas"),
+        ]
+        self.assertListEqual(expected, actual)
 
 
 class TestGridParser(TestCase):

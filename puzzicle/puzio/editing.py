@@ -164,13 +164,23 @@ class ClueParser(object):
 
     comment_leader = '#'
 
-    def parse(self, ifile: TextIO, filename: str=None) -> List[Clue]:
+    def parse(self, ifile: TextIO, filename: str=None, pipes: bool = False) -> List[Clue]:
         if filename is not None and filename.lower().endswith('.csv'):
             return self._parse_csv(csv.reader(ifile))
-        return self._parse_text(ifile)
+        return self._parse_text(ifile, pipes=pipes)
 
-    def _parse_text(self, ifile: TextIO) -> List[Clue]:
+    def _parse_text(self, ifile: TextIO, pipes: bool = False) -> List[Clue]:
         lines = _read_lines(ifile, comment_leader=self.comment_leader)
+        if pipes:
+            clues = []
+            for parts in map(lambda line: line.split('|'), lines):
+                parts = [part.strip() for part in parts if part]
+                num_and_dir = parts[0]
+                direction = num_and_dir[-1]
+                numeral = int(num_and_dir[:-1])
+                text = parts[-1]
+                clues.append(Clue(numeral, direction, text))
+            return clues
         if 'Across' in lines and 'Down' in lines:
             a_start = lines.index('Across')
             d_start = lines.index('Down')

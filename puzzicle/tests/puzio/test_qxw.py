@@ -63,10 +63,10 @@ class ModuleMethodsTest(TestCase):
         print_entries(entries, ofile=buffer)
         actual = buffer.getvalue()
         expected = """\
-|   5A | OTTER             |
-|  10A | OPAL              |
-|  15A | PIPPILONGSTOCKING |
-|  16D | DONOHARM          |
-| 317D | BAD               |
+|   5A | OTTER             | 
+|  10A | OPAL              | 
+|  15A | PIPPILONGSTOCKING | 
+|  16D | DONOHARM          | 
+| 317D | BAD               | 
 """
         self.assertEqual(expected, actual)
