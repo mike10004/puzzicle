@@ -24,12 +24,15 @@ def _generate_filename(directory):
 
 
 def create_arg_parser() -> ArgumentParser:
-    parser = ArgumentParser(epilog="""\
-Each line of clues text file must match the regex "[0-9]+[AD]\.? \S.*". 
+    parser = ArgumentParser(description="""\
+Create a .puz file from various input files.
+""", epilog="""\
+If --clues-pipes is not present, each line of clues text file must match the regex "([0-9]+)([AD])\.? (\S.*)\s*". 
 """)
     parser.add_argument("output_pathname", nargs='?', metavar="FILE", help="output pathname; defaults to timestamped filename in $PWD")
     parser.add_argument("--input", metavar="FILE", help="input file in .puz or .qxw format")
     parser.add_argument("--clues", metavar="FILE", help="define clues source (text file)")
+    parser.add_argument("-p", "--clues-pipes", action='store_true', help="specify that clues source is pipe-delimited")
     parser.add_argument("--solution", help="define solution; use '.' char for dark cells")
     parser.add_argument("--grid", help="define grid; use '.' for dark cells, anything for light")
     parser.add_argument("--title", metavar="STR", help="set title")

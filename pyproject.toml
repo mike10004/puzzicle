@@ -1,6 +1,6 @@
 [project]
 name = "puzzicle"
-version = "0.1.0"
+version = "0.2.1"
 description = "Puzzle creation tools"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -36,6 +36,7 @@ dev = ["cprofilev"]
 puzshow = "puzzicle.puzio:showing.main"
 puzedit = "puzzicle.puzio:editing.main"
 puzrender = "puzzicle.puzio:rendering.main"
+puzqxw = "puzzicle.puzio:qxw.main"
 
 # This is configuration specific to the `setuptools` build backend.
 # If you are using a different build backend, you will need to change this.
