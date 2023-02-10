@@ -1,6 +1,6 @@
 [project]
 name = "puzzicle"
-version = "0.2.4"
+version = "0.2.5"
 description = "Puzzle creation tools"
 readme = "README.md"
 requires-python = ">=3.8"

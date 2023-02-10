@@ -206,21 +206,26 @@ class ClueParser(object):
         return clues
 
     def _parse_numbering_cells(self, numbering: List[str]) -> Tuple[int, str]:
-        if len(numbering) == 1:
-            direction = numbering[0][-1]
-            number = numbering[0][:-1]
-        elif len(numbering) == 2:
-            number, direction = numbering
-        else:
-            raise ValueError("unexpected number of numbering cells: " + str(len(numbering)))
-        return number, direction
+        col0 = re.fullmatch(r'^\s*(\d+)([AD]?)\s*$', numbering[0])
+        if not col0:
+            raise ValueError("row has unexpected format")
+        numeral = col0.group(1)
+        direction = col0.group(2)
+        if not direction:
+            direction = numbering[1].strip().upper()
+        return numeral, direction
 
     def _parse_csv(self, reader: typing.Iterator[List[str]]) -> List[Clue]:
         clues = []
+        reader = [row for row in reader if row]
+        if not reader:
+            return clues
+        if not re.fullmatch(r'^\d+[AD]?$', reader[0][0], re.IGNORECASE):  # detect header row
+            reader = reader[1:]
         for row in reader:
             clue = row[-1]
             number, direction = self._parse_numbering_cells(row[:-1])
-            clues.append(Clue(number, direction, clue))
+            clues.append(Clue(int(number), direction, clue))
         return clues
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import csv
 import tempfile
 from puzzicle.puzio import editing
 import io
@@ -195,19 +195,74 @@ Down
 6D foxtrot"""
         self.do_test_parse_text_numberwithdirection(clues_text)
 
+    def test__parse_csv_std(self):
+        clues_text = """1A,foo
+4A,bar
+1D,alfa
+
+2D,bravo
+3D,charlie
+4D,delta
+5D,echo
+6D,foxtrot"""
+        with self.subTest("noheader"):
+            actual_clues = ClueParser()._parse_csv(csv.reader(io.StringIO(clues_text)))
+            self.assertSetEqual(self.expected_clues1, set(actual_clues))
+        with self.subTest("header"):
+            clues_text = "Num,Clue\n" + clues_text
+            actual_clues = ClueParser()._parse_csv(csv.reader(io.StringIO(clues_text)))
+            self.assertSetEqual(self.expected_clues1, set(actual_clues))
+
+    def test__parse_csv_split_num_direction(self):
+        clues_text = """1,A,foo
+4,A,bar
+1,D,alfa
+2,D,bravo
+3,D,charlie
+4,D,delta
+5,D,echo
+6,D,foxtrot"""
+        actual_clues = ClueParser()._parse_csv(csv.reader(io.StringIO(clues_text)))
+        self.assertSetEqual(self.expected_clues1, set(actual_clues))
+
+    def test__parse_csv_split_extracol(self):
+        clues_text = """1,A,zulu,foo
+4,A,yankee,bar
+1,D,x-ray,alfa
+2,D,whiskey,bravo
+3,D,victor,charlie
+4,D,uniform,delta
+5,D,tango,echo
+6,D,sierra,foxtrot"""
+        actual_clues = ClueParser()._parse_csv(csv.reader(io.StringIO(clues_text)))
+        self.assertSetEqual(self.expected_clues1, set(actual_clues))
+
+    def test__parse_csv_split_std_extracol(self):
+        clues_text = """1A,zulu,foo
+4A,yankee,bar
+1D,x-ray,alfa
+2D,whiskey,bravo
+3D,victor,charlie
+4D,uniform,delta
+5D,tango,echo
+6D,sierra,foxtrot"""
+        actual_clues = ClueParser()._parse_csv(csv.reader(io.StringIO(clues_text)))
+        self.assertSetEqual(self.expected_clues1, set(actual_clues))
+
+    expected_clues1 = {
+        Clue(1, 'A', 'foo'),
+        Clue(4, 'A', 'bar'),
+        Clue(1, 'D', 'alfa'),
+        Clue(2, 'D', 'bravo'),
+        Clue(3, 'D', 'charlie'),
+        Clue(4, 'D', 'delta'),
+        Clue(5, 'D', 'echo'),
+        Clue(6, 'D', 'foxtrot'),
+    }
+
     def do_test_parse_text_numberwithdirection(self, clues_text):
         actual_clues = ClueParser()._parse_text(io.StringIO(clues_text))
-        expected_clues = {
-            Clue(1, 'A', 'foo'),
-            Clue(4, 'A', 'bar'),
-            Clue(1, 'D', 'alfa'),
-            Clue(2, 'D', 'bravo'),
-            Clue(3, 'D', 'charlie'),
-            Clue(4, 'D', 'delta'),
-            Clue(5, 'D', 'echo'),
-            Clue(6, 'D', 'foxtrot'),
-        }
-        self.assertSetEqual(expected_clues, set(actual_clues))
+        self.assertSetEqual(self.expected_clues1, set(actual_clues))
 
     def test_parse_pipes(self):
         text = """\
