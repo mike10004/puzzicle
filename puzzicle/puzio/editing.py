@@ -97,7 +97,8 @@ class PuzzleCreator(object):
         if args.clues:
             with open(args.clues, 'r') as ifile:
                 clue_parser = ClueParser()
-                puzzle.clues = [c.text for c in sorted(clue_parser.parse(ifile, args.clues))]
+                clues = clue_parser.parse(ifile, args.clues)
+                puzzle.clues = [c.text for c in sorted(clues)]
         grid = None
         if args.solution:
             with open(args.solution, 'r') as ifile:

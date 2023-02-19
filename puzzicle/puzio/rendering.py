@@ -2,6 +2,7 @@
 
 import contextlib
 import io
+import itertools
 import os
 import json
 import collections.abc
@@ -46,7 +47,6 @@ _DEFAULT_CSS_MODEL = {
     },
     'grid': {
         'cell': {
-            'font-size': '7pt',
             'width': f'{_GRID_CELL_WIDTH}px',
             'height': f'{_GRID_CELL_HEIGHT}px',
             'padding': f'{_GRID_CELL_PAD_VERT}px {_GRID_CELL_PAD_HORZ}px',
@@ -148,6 +148,9 @@ body {{
     padding-right: 10px; 
 }}
 
+.clue > * > .value {{
+}}
+
 .grid {{
     z-index: 100;
     position: absolute;
@@ -168,11 +171,30 @@ body {{
 
 .grid td {{
     border: 1px solid black;
-    font-size: {grid[cell][font-size]};
     vertical-align: top;
     width: {grid[cell][width]};
     height: {grid[cell][height]};
     padding: {grid[cell][padding]};
+    position: relative;
+}}
+
+.cell .number {{
+    font-size: 7pt;
+    position: absolute;
+    top: 2px;
+    right: 0;
+    bottom: 0;
+    left: 2px;
+}}
+
+.cell .value {{
+    font-size: 14pt;
+    font-family: sans-serif;
+    position: absolute;
+    top: 4px;
+    right: 0;
+    bottom: 0;
+    left: 12px;
 }}
 
 .dark {{
@@ -251,13 +273,14 @@ class Cell(object):
         self.down = down
 
     def get_class(self):
-        return 'dark' if self.value == _DARK else 'light'
+        cssclass = 'dark' if self.value == _DARK else 'light'
+        return cssclass
 
     def to_char(self) -> str:
         return self.value or ' '
 
     def __str__(self):
-        return f"Cell(row={self.row},value={repr(self.value)},number={self.number})"
+        return f"Cell(row={self.row},col={self.column},value={repr(self.value)},number={self.number})"
 
 
 class RenderModel(object):
@@ -277,14 +300,14 @@ class RenderModel(object):
                 yield cell
 
     @classmethod
-    def build(cls, puzzle: puz.Puzzle) -> 'RenderModel':
+    def build(cls, puzzle: puz.Puzzle, filled: bool = False) -> 'RenderModel':
         nrows, ncols = puzzle.height, puzzle.width
         rows = []
         for r in range(nrows):
             cols = []
             for c in range(ncols):
                 val = puzzle.solution[r * ncols + c]
-                cols.append('.' if val == '.' else '')
+                cols.append(val if val == '.' or filled else '')
             rows.append(cols)
         grows = []
         clues = {
@@ -293,7 +316,7 @@ class RenderModel(object):
         }
         clue_numbering = puzzle.clue_numbering()
         for direction in ('Across', 'Down'):
-            clue_list = clue_numbering.__dict__[direction.lower()]
+            clue_list = getattr(clue_numbering, direction.lower())
             for i in range(len(clue_list)):
                 clue_info = clue_list[i]
                 clue_tuple = (clue_info['num'], clue_info['clue'])
@@ -309,7 +332,7 @@ class RenderModel(object):
                 grow.append(cell)
             grows.append(grow)
         for direction in ('across', 'down'):
-            for clue_info in clue_numbering.__dict__[direction]:
+            for clue_info in getattr(clue_numbering, direction):
                 cell_num, cell_index = clue_info['num'], clue_info['cell']
                 cell_list[cell_index].number = cell_num
                 cell_list[cell_index].across = (direction == 'across')
@@ -343,9 +366,13 @@ class GridRenderer(object):
                 assert isinstance(cell, Cell), f"not a cell {cell}"
                 cell_index += 1
                 col_index += 1
-                content = '&nbsp;' if cell.number is None else f"<span>{cell.number}</span>"
+                content = ""
+                if cell.number is not None:
+                    content += f"""<span class="number">{cell.number}</span>"""
+                value = "&nbsp;" if not cell.value or cell.value == _DARK else cell.value
+                content += f"""<span class="value">{value}</span>"""
                 css_class = cell.get_class()
-                fprint(f"    <td id=\"cell-{cell_index}\" class=\"{css_class} column-{col_index}\">{content}</td>")
+                fprint(f"    <td id=\"cell-{cell_index}\" class=\"cell {css_class} column-{col_index}\">{content}</td>")
             fprint("  </td>")
         fprint("</table>")
 
@@ -500,11 +527,17 @@ def main(args: Sequence[str]=None):
     parser.add_argument("--config", metavar="FILE", help="specify FILE with config settings in JSON")
     parser.add_argument("--output", metavar="FILE", help="set output file; deafult is stdout")
     parser.add_argument("--tmpdir", metavar="DIR", help="use DIR for temp files")
+    parser.add_argument("--solution", action='store_true', help="include solution")
     _FORMAT_CHOICES = ("text", "html", "pdf")
     parser.add_argument("--format", metavar="FORMAT", choices=("html", "pdf"), default="html", help=f"one of {_FORMAT_CHOICES}")
     args = parser.parse_args(args)
     puzzle = PuzzleReader().read(args.input_file)
-    model = RenderModel.build(puzzle)
+    if args.solution:
+        if not puzzle.clues:
+            puzzle.clues.extend([f"u_{r}_{c}" for r, c in itertools.product(range(puzzle.height), range(puzzle.width))])
+        if not puzzle.fill:
+            puzzle.fill = puzzle.solution
+    model = RenderModel.build(puzzle, filled=args.solution)
     more_css = []
     config = get_default_config()
     if args.config:

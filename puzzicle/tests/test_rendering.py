@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 from unittest import TestCase
+
+from puzzicle.puzio.reading import PuzzleReader
 from puzzicle.puzio.rendering import RenderModel, ClueRenderer
 from puzzicle import tests
 import puz
@@ -35,6 +37,44 @@ AGhvdGVsAGJyYXZvAGluZGlhAGNoYXJsaWUAZGVsdGEAZWNobwBqdWxpZXQAZm94dHJvdAAA
                 print(html, file=ofile)
             _log.info("wrote %s", output_file)
 
+    def test_render_solution(self):
+        puzzle = PuzzleReader().read(tests._Data().get_file("mini-5x4.qxw"))
+        if not puzzle.clues:
+            puzzle.clues.extend([f"c_{i}" for i in range(puzzle.width * puzzle.height)])
+        if not puzzle.fill:
+            puzzle.fill = puzzle.solution
+        model = RenderModel.build(puzzle, filled=True)
+        html = rendering.PuzzleRenderer().render(model)
+        # noinspection PyUnresolvedReferences,PyPackageRequirements
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, 'html.parser')
+        # LAPS.
+        # IRATE
+        # LAPEL
+        # .BAWL
+        for row, col, cssclass, number, value in [
+            (3, 1, "light", 7, "L"),
+            (3, 4, "light", None, "E"),
+            (3, 5, "light", None, "L"),
+            (1, 1, "light", 1, "L"),
+            (1, 3, "light", 3, "P"),
+            (2, 5, "light", 6, "E"),
+            (1, 5, "dark", None, "\xa0"),
+        ]:
+            with self.subTest(row=row, col=col):
+                cell = soup.select(f"#row-{row} .column-{col}")[0]
+                classes = cell.get("class")
+                self.assertIn(cssclass, classes)
+                if number is None:
+                    self.assertEqual(0, len(list(cell.select(".number"))), f"expect cell not numbered: {cell}")
+                else:
+                    try:
+                        number_span = cell.select(".number")[0]
+                    except IndexError:
+                        self.fail(f"cell has no '.number' child: {cell}")
+                    self.assertEqual(str(number), number_span.text)
+                value_span = cell.select(".value")[0]
+                self.assertEqual(value, value_span.text)
 
 class RenderModelTest(TestCase):
 
