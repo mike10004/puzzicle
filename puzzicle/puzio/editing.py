@@ -14,6 +14,7 @@ from typing import List, Tuple, Optional
 from typing import TextIO
 import logging
 
+from puzzicle.puzio.reading import PuzzleReader
 
 _log = logging.getLogger(__name__)
 
@@ -44,23 +45,10 @@ If --clues-pipes is not present, each line of clues text file must match the reg
     return parser
 
 
-def _read_lines(ifile: TextIO, include_whitespace_only: bool=False, comment_leader: str=None):
-    lines = []
-    lines_with_endings = [line for line in ifile]
-    for i, line in enumerate(lines_with_endings):
-        if line[-1] == os.linesep:
-            line = line[:-1]
-        if comment_leader is not None and line.lstrip().startswith(comment_leader):
-            continue
-        if include_whitespace_only or line.strip():
-            lines.append(line)
-    return lines
-
-
 class GridParser(object):
 
     def parse(self, ifile: TextIO) -> str:
-        lines = _read_lines(ifile)
+        lines = puzio.read_lines(ifile)
         # make all lines the same length
         max_len = max(map(len, lines))
         for i in range(len(lines)):
@@ -98,15 +86,7 @@ class PuzzleCreator(object):
 
     def parse_input(self, input_arg: str) -> puz.Puzzle:
         if input_arg:
-            if input_arg.lower().endswith('.qxw'):
-                with open(input_arg, 'r') as ifile:
-                    qxw_model = QxwParser().parse(ifile)
-                puzzle = puz.Puzzle()
-                puzzle.preamble = b''
-                puzzle.solution = qxw_model.to_puz_solution()
-                puzzle.scrambled_cksum = 0
-            else:
-                puzzle = puz.read(input_arg)
+            puzzle = PuzzleReader().read(input_arg)
         else:
             puzzle = puz.Puzzle()
             puzzle.preamble = b''
@@ -170,7 +150,7 @@ class ClueParser(object):
         return self._parse_text(ifile, pipes=pipes)
 
     def _parse_text(self, ifile: TextIO, pipes: bool = False) -> List[Clue]:
-        lines = _read_lines(ifile, comment_leader=self.comment_leader)
+        lines = puzio.read_lines(ifile, comment_leader=self.comment_leader)
         if pipes:
             clues = []
             for parts in map(lambda line: line.split('|'), lines):
@@ -227,33 +207,6 @@ class ClueParser(object):
             number, direction = self._parse_numbering_cells(row[:-1])
             clues.append(Clue(int(number), direction, clue))
         return clues
-
-
-class QxwModel(object):
-
-    def __init__(self, cells):
-        self.cells = cells
-
-    def to_puz_solution(self):
-        values = self.cells
-        return ''.join(values)
-
-
-class QxwParser(object):
-
-    def parse(self, ifile: TextIO) -> QxwModel:
-        sq_lines = [line[3:] for line in _read_lines(ifile) if line.startswith("SQ ")]
-        cells = []
-        for line in sq_lines:
-            components = line.strip().split()
-            if len(components) == 5:
-                val = '_'
-            else:
-                val = components[5]
-            if components[4] == '1':
-                val = '.'
-            cells.append(val)
-        return QxwModel(cells)
 
 
 def main():

@@ -5,7 +5,8 @@ import tempfile
 from puzzicle.puzio import editing
 import io
 import puz
-from puzzicle.puzio.editing import PuzzleCreator, ClueParser, Clue, GridParser, QxwParser
+from puzzicle.puzio.editing import PuzzleCreator, ClueParser, Clue, GridParser
+from puzzicle.puzio.qxw import QxwParser
 from unittest import TestCase
 import argparse
 import os.path

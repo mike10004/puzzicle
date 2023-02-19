@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
+import contextlib
 import io
 import os
 import json
 import collections.abc
 import copy
 import math
+import sys
+from pathlib import Path
+
 import puz
 import pdfkit
 import logging
 import tempfile
 from argparse import ArgumentParser, Namespace
-from typing import Dict, List, Tuple, Iterable, Any, Iterator, TextIO, Sequence
+from typing import Dict, List, Tuple, Iterable, Any, Iterator, TextIO, Sequence, Union
 from collections import defaultdict
 
 
@@ -248,6 +251,12 @@ class Cell(object):
     def get_class(self):
         return 'dark' if self.value == _DARK else 'light'
 
+    def to_char(self) -> str:
+        return self.value or ' '
+
+    def __str__(self):
+        return f"Cell(row={self.row},value={repr(self.value)},number={self.number})"
+
 
 class RenderModel(object):
 
@@ -457,10 +466,9 @@ class PuzzleRenderer(object):
         fprint("</html>")
 
 
-def _do_render(model, config, more_css, ofile):
+def render_html(model, config, more_css, ofile):
     renderer = PuzzleRenderer(config, more_css=more_css)
     renderer.render(model, ofile)
-
 
 def make_pdf_options(args: Namespace):
     return {
@@ -473,14 +481,25 @@ def make_pdf_options(args: Namespace):
         'encoding': "UTF-8",
      }
 
+@contextlib.contextmanager
+def open_output(pathname: Union[Path, str] = None, mode: str = 'w') -> TextIO:
+    if pathname is None or pathname == '-':
+        yield sys.stdout
+    else:
+        with open(pathname, mode) as ofile:
+            yield ofile
+
+
 def main(args: Sequence[str]=None):
     parser = ArgumentParser()
     parser.add_argument("input_file", metavar="PUZ", help=".puz input file")
     parser.add_argument("--log-level", metavar="LEVEL", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
     parser.add_argument("--more-css", metavar="FILE", help="read additional styles from FILE")
     parser.add_argument("--config", metavar="FILE", help="specify FILE with config settings in JSON")
-    parser.add_argument("--output", metavar="FILE", default="/dev/stdout", help="set output file")
+    parser.add_argument("--output", metavar="FILE", help="set output file; deafult is stdout")
     parser.add_argument("--tmpdir", metavar="DIR", help="use DIR for temp files")
+    _FORMAT_CHOICES = ("text", "html", "pdf")
+    parser.add_argument("--format", metavar="FORMAT", choices=("html", "pdf"), default="html", help=f"one of {_FORMAT_CHOICES}")
     args = parser.parse_args(args)
     puzzle = puz.read(args.input_file)
     model = RenderModel.build(puzzle)
@@ -492,21 +511,25 @@ def main(args: Sequence[str]=None):
     if args.more_css:
         with open(args.more_css, 'r') as ifile:
             more_css.append(ifile.read())
-    html_file = args.output
-    pdf_file = args.output if args.output.lower().endswith('.pdf') else None
-    if pdf_file:
-        fd, html_file = tempfile.mkstemp(".html", "temporary", dir=args.tmpdir)
-        os.close(fd)
-    try:
-        with open(html_file, 'w') as ofile:
-            _do_render(model, config, more_css, ofile)
-        if pdf_file:
-            pdfkit.from_file(html_file, pdf_file, options=make_pdf_options(args))
-        _log.debug("wrote %s", args.output)
-    finally:
-        if pdf_file:
-            try:
-                os.remove(html_file)
-            except IOError as e:
-                _log.info("caught error deleting temp file %s: %s", html_file, e)
+    with tempfile.TemporaryDirectory(prefix="puzrender_", dir=args.tmpdir) as tempdir:
+        if args.format in {'html', 'pdf'}:
+            html_file = os.path.join(tempdir, "puzzle.html")
+            with open(html_file, 'w') as ofile:
+                render_html(model, config, more_css, ofile)
+            final_file = html_file
+            mode_suffix = ''
+            if args.format == 'pdf':
+                mode_suffix = 'b'
+                pdf_file = os.path.join(tempdir, "puzzle.pdf")
+                pdfkit.from_file(html_file, pdf_file, options=make_pdf_options(args))
+                final_file = pdf_file
+        else:
+            raise NotImplementedError("output format not supported")
+        with open_output(args.output, mode=f"w{mode_suffix}") as ofile:
+            if args.format == 'pdf' and ofile.isatty():
+                _log.error("not writing pdf on standard output in console")
+                return 1
+            with open(final_file, mode=f"r{mode_suffix}") as ifile:
+                ofile.write(ifile.read())
+        _log.debug("wrote to file %s", args.output)
     return 0

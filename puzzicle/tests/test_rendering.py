@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 from unittest import TestCase
 from puzzicle.puzio.rendering import RenderModel, ClueRenderer
@@ -11,7 +10,7 @@ import base64
 import logging
 import tempfile
 from collections import defaultdict
-
+from puzzicle.tests import sample_puzzle
 
 _log = logging.getLogger(__name__)
 
@@ -40,19 +39,14 @@ AGhvdGVsAGJyYXZvAGluZGlhAGNoYXJsaWUAZGVsdGEAZWNobwBqdWxpZXQAZm94dHJvdAAA
 class RenderModelTest(TestCase):
 
     def test_info(self):
-        puzzle = puz.Puzzle()
-        puzzle.width, puzzle.height = 5, 5
-        puzzle.fill = '-.-.-------.-.-------.-.-'
-        puzzle.clues = ['ADILQ', 'BFJNR', 'CHKPS', 'DEFGH', 'LMNOP']
-        puzzle.solution = 'A.B.CDEFGHI.J.KLMNOPQ.R.S'
-        puzzle.title = "Foo"
-        puzzle.author = "Bar"
+        puzzle = sample_puzzle()
         model = RenderModel.build(puzzle)
         self.assertIsInstance(model.info, defaultdict)
         self.assertEqual(puzzle.title, model.info['title'])
         self.assertEqual(puzzle.author, model.info['author'])
         puz_copyright = model.info['copyright']
         self.assertTrue(puz_copyright is None or puz_copyright == '')
+
 
     def test_build_unched(self):
         puzzle = puz.Puzzle()

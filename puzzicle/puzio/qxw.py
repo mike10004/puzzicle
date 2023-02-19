@@ -10,6 +10,45 @@ from argparse import ArgumentParser
 from enum import Enum
 from typing import List, NamedTuple, TextIO
 
+from puzzicle import puzio
+
+
+class QxwModel(object):
+
+    def __init__(self, cells, width: int = 0, height: int = 0):
+        self.cells = cells
+        self.width = width
+        self.height = height
+
+    def to_puz_solution(self):
+        values = self.cells
+        return ''.join(values)
+
+
+
+class QxwParser(object):
+
+    def parse(self, ifile: TextIO) -> QxwModel:
+        all_lines = puzio.read_lines(ifile)
+        sq_lines = [line[3:] for line in all_lines if line.startswith("SQ ")]
+        nonsq_lines = [line for line in all_lines if not line.startswith("SQ ")]
+        cells = []
+        for line in sq_lines:
+            components = line.strip().split()
+            if len(components) == 5:
+                val = '_'
+            else:
+                val = components[5]
+            if components[4] == '1':
+                val = '.'
+            cells.append(val)
+        gp_line = next(filter(lambda line: line.startswith("GP "), nonsq_lines), None)
+        width, height = 0, 0
+        if gp_line is not None:
+            gp_parts = gp_line.split()
+            width, height = int(gp_parts[3]), int(gp_parts[2])   # actually not sure about rows/cols ordering here
+        return QxwModel(cells, width, height)
+
 
 class Direction(Enum):
 
@@ -99,7 +138,8 @@ def main(argv1: List[str] = None, getenv = os.getenv) -> int:
     args = parser.parse_args(argv1)
     if args.command == "clues":
         return _command_clues(args.file, fmt=args.format, ofile=sys.stdout)
-    return 0
+    else:
+        raise NotImplementedError()
 
 
 if __name__ == '__main__':

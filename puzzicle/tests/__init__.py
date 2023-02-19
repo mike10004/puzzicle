@@ -5,6 +5,9 @@ import os
 import os.path
 import errno
 from typing import List, Dict, DefaultDict, Iterator
+
+import puz
+
 from puzzicle import puzzicon
 import puzzicle.puzzicon.fill
 import puzzicle.puzzicon.fill.state
@@ -125,4 +128,14 @@ class Render(object):
     def filled(state: puzzicle.puzzicon.fill.state.FillState) -> Iterator[str]:
         return filter(lambda x: x is not None, state.used)
 
+
+def sample_puzzle() -> puz.Puzzle:
+    puzzle = puz.Puzzle()
+    puzzle.width, puzzle.height = 5, 5
+    puzzle.fill = '-.-.-------.-.-------.-.-'
+    puzzle.clues = ['ADILQ', 'BFJNR', 'CHKPS', 'DEFGH', 'LMNOP']
+    puzzle.solution = 'A.B.CDEFGHI.J.KLMNOPQ.R.S'
+    puzzle.title = "Foo"
+    puzzle.author = "Bar"
+    return puzzle
 
