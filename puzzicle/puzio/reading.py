@@ -10,12 +10,7 @@ class PuzzleReader(object):
         if pathname.lower().endswith('.qxw'):
             with open(pathname, 'r') as ifile:
                 qxw_model = QxwParser().parse(ifile)
-            puzzle = puz.Puzzle()
-            puzzle.preamble = b''
-            puzzle.solution = qxw_model.to_puz_solution()
-            puzzle.scrambled_cksum = 0
-            puzzle.width = qxw_model.width
-            puzzle.height = qxw_model.height
+            puzzle = qxw_model.to_puz()
         else:
             puzzle = puz.read(pathname)
         return puzzle

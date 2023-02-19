@@ -1,9 +1,12 @@
 import io
 from unittest import TestCase
+from puzzicle.puzio import qxw
+from puzzicle import tests
 from puzzicle.puzio.qxw import AnswersExportCleaner
 from puzzicle.puzio.qxw import Direction
 from puzzicle.puzio.qxw import Entry
 from puzzicle.puzio.qxw import print_entries
+from puzzicle.puzio.qxw import QxwParser
 
 class AnswersExportCleanerTest(TestCase):
 
@@ -51,6 +54,39 @@ Down
 
 class ModuleMethodsTest(TestCase):
 
+    def test__acquire_lines_after(self):
+        lines = """\
+A
++b
++c
+D
++e
++f
+G
++h
++i
+J
+blob
+K
+L
++m
+N
+-o
+G
++p
++q
+""".split()
+        with self.subTest("garden path"):
+            result = qxw._acquire_lines_after(lines, lambda x: x == "D", lambda x: x.startswith("+"))
+            result = list(result)
+            self.assertListEqual(["+e", "+f"], result)
+        with self.subTest("empty"):
+            result = qxw._acquire_lines_after(lines, lambda x: x == "K", lambda x: x.startswith("+"))
+            self.assertListEqual([], list(result))
+        with self.subTest("repeat"):
+            result = qxw._acquire_lines_after(lines, lambda x: x == "G", lambda x: x.startswith("+"))
+            self.assertListEqual(["+h", "+i"], list(result))
+
     def test__print_entries(self):
         entries = [
             Entry(5, Direction.ACROSS, "OTTER"),
@@ -70,3 +106,51 @@ class ModuleMethodsTest(TestCase):
 | 317D | BAD               | 
 """
         self.assertEqual(expected, actual)
+
+
+class QxwParserTest(TestCase):
+
+    def test_parse(self):
+        text = tests.data.load_file('normal.qxw', 'r')
+        model = QxwParser().parse(io.StringIO(text))
+        solution = model.to_puz_solution()
+        self.assertEqual('ABC...DEF.GH.IJ.KLM...NOP', solution, "converted solution")
+
+    def test_parse_a1x1(self):
+        with tests.data.open_file('a-1x1.qxw', 'r') as ifile:
+            model = QxwParser().parse(ifile)
+        solution = model.to_puz_solution()
+        self.assertEqual('A', solution, "converted solution")
+
+    def test_parse_blank1x1(self):
+        with tests.data.open_file('blank-1x1.qxw', 'r') as ifile:
+            model = QxwParser().parse(ifile)
+        solution = model.to_puz_solution()
+        self.assertEqual('_', solution, "converted solution")
+
+    def test_parse_adark1x1(self):
+        with tests.data.open_file('a-dark-1x1.qxw', 'r') as ifile:
+            model = QxwParser().parse(ifile)
+        solution = model.to_puz_solution()
+        self.assertEqual('.', solution, "converted solution")
+
+    def test_parse_basic2x2(self):
+        text = tests.data.load_file('basic-2x2.qxw', 'r')
+        model = QxwParser().parse(io.StringIO(text))
+        solution = model.to_puz_solution()
+        self.assertEqual('_.._', solution, "converted solution")
+
+    def test_parse_letter_in_dark_2x2(self):
+        with tests.data.open_file('letter-in-dark.qxw', 'r') as ifile:
+            model = QxwParser().parse(ifile)
+        sol = model.to_puz_solution()
+        self.assertEqual('A..D', sol, "solution")
+
+    def test_parse_mini5x4(self):
+        with tests.data.open_file('mini-5x4.qxw', 'r') as ifile:
+            q = QxwParser().parse(ifile)
+        self.assertEqual('LAPS.IRATELAPEL.BAWL', q.to_puz_solution())
+        self.assertEqual(5, q.width)
+        self.assertEqual(4, q.height)
+        self.assertEqual("Foo", q.title)
+        self.assertEqual("Bar", q.author)

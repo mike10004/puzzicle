@@ -9,6 +9,7 @@ import copy
 import math
 import sys
 from pathlib import Path
+from typing import Optional
 
 import puz
 import pdfkit
@@ -18,6 +19,7 @@ from argparse import ArgumentParser, Namespace
 from typing import Dict, List, Tuple, Iterable, Any, Iterator, TextIO, Sequence, Union
 from collections import defaultdict
 
+from puzzicle.puzio.reading import PuzzleReader
 
 _log = logging.getLogger(__name__)
 
@@ -266,7 +268,7 @@ class RenderModel(object):
             for cell in row:
                 assert isinstance(cell, Cell), "rows contains non-cell elements"
         self.clues = clues
-        self.info = defaultdict(lambda: None)
+        self.info: Dict[str, Optional[str]] = defaultdict(lambda: None)
         self.info.update(info or {})
 
     def cells(self):
@@ -492,7 +494,7 @@ def open_output(pathname: Union[Path, str] = None, mode: str = 'w') -> TextIO:
 
 def main(args: Sequence[str]=None):
     parser = ArgumentParser()
-    parser.add_argument("input_file", metavar="PUZ", help=".puz input file")
+    parser.add_argument("input_file", metavar="FILE", help=".puz or .qxw input file")
     parser.add_argument("--log-level", metavar="LEVEL", choices=('INFO', 'DEBUG', 'WARNING', 'ERROR'), default='INFO', help="set log level")
     parser.add_argument("--more-css", metavar="FILE", help="read additional styles from FILE")
     parser.add_argument("--config", metavar="FILE", help="specify FILE with config settings in JSON")
@@ -501,7 +503,7 @@ def main(args: Sequence[str]=None):
     _FORMAT_CHOICES = ("text", "html", "pdf")
     parser.add_argument("--format", metavar="FORMAT", choices=("html", "pdf"), default="html", help=f"one of {_FORMAT_CHOICES}")
     args = parser.parse_args(args)
-    puzzle = puz.read(args.input_file)
+    puzzle = PuzzleReader().read(args.input_file)
     model = RenderModel.build(puzzle)
     more_css = []
     config = get_default_config()

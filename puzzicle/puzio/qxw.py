@@ -8,21 +8,39 @@ import re
 import sys
 from argparse import ArgumentParser
 from enum import Enum
+from typing import Callable
+from typing import Iterator
 from typing import List, NamedTuple, TextIO
+from typing import Optional
+
+import puz
 
 from puzzicle import puzio
 
 
 class QxwModel(object):
 
-    def __init__(self, cells, width: int = 0, height: int = 0):
+    def __init__(self, cells: List[str], width: int = 0, height: int = 0, title: str = None, author: str = None):
         self.cells = cells
         self.width = width
         self.height = height
+        self.title = title
+        self.author = author
 
     def to_puz_solution(self):
         values = self.cells
         return ''.join(values)
+
+    def to_puz(self) -> puz.Puzzle:
+        puzzle = puz.Puzzle()
+        puzzle.preamble = b''
+        puzzle.solution = self.to_puz_solution()
+        puzzle.scrambled_cksum = 0
+        puzzle.width = self.width
+        puzzle.height = self.height
+        puzzle.author = self.author
+        puzzle.title = self.title
+        return puzzle
 
 
 
@@ -46,9 +64,27 @@ class QxwParser(object):
         width, height = 0, 0
         if gp_line is not None:
             gp_parts = gp_line.split()
-            width, height = int(gp_parts[3]), int(gp_parts[2])   # actually not sure about rows/cols ordering here
-        return QxwModel(cells, width, height)
+            width, height = int(gp_parts[2]), int(gp_parts[3])
+        def _get_field(signal) -> Optional[str]:
+            lines = _acquire_lines_after(nonsq_lines, lambda x: x == signal, lambda x: x.startswith("+"))
+            if lines:
+                return list(lines)[0][1:]
+        title = _get_field("TTL")
+        author = _get_field("AUT")
+        return QxwModel(cells, width, height, title, author)
 
+
+def _acquire_lines_after(lines: List[str], signal: Callable[[str], bool], while_true: Callable[[str], bool]) -> Iterator[str]:
+    signal_satisfied = False
+    for line in lines:
+        if signal_satisfied:
+            if while_true(line):
+                yield line
+            else:
+                break
+        else:
+            if signal(line):
+                signal_satisfied = True
 
 class Direction(Enum):
 
